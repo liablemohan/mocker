@@ -1,5 +1,6 @@
 # Temporary job data and uploads
 jobs/
+extract_pages/
 
 # Large test PDF files
 *.pdf
