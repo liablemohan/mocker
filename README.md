@@ -1,3 +1,13 @@
+---
+title: ExamDesk
+emoji: 📝
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # ExamDesk — Premium Bilingual CBT Simulator & Extraction Pipeline
 
 ExamDesk is a high-fidelity Computer Based Test (CBT) practice platform designed to match the user interface and functionality of **Testbook.com**. It is powered by a high-accuracy, hybrid question extraction pipeline that performs **dual-pass OCR (Roman + Devanagari Tesseract)** and utilizes the **Gemini API** to align and format bilingual exam questions.
