@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ExamDesk — CBT Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+/* ══════════════════════════════════════
+   DESIGN TOKENS
+══════════════════════════════════════ */
+:root{
+  --blue:#1a56db;--blue-d:#1e429f;--blue-l:#ebf5ff;--blue-m:#93c5fd;
+  --green:#057a55;--green-l:#def7ec;--green-b:#31c48d;
+  --red:#e02424;--red-l:#fde8e8;
+  --purple:#6c2bd9;--purple-l:#edebfe;
+  --orange:#d97706;--orange-l:#fef3c7;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+  --gray-300:#d1d5db;--gray-400:#9ca3af;--gray-500:#6b7280;
+  --gray-700:#374151;--gray-900:#111827;
+  --sidebar-bg:#1e2939;
+  --radius:8px;
+  /* NTA palette */
+  --nv:#a3a3a3;--na:#ef4444;--ans:#22c55e;--mrk:#a855f7;--amrk:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--gray-100);color:var(--gray-900);min-height:100vh;font-size:14px;}
+button,input,select,textarea{font-family:inherit;}
+button{cursor:pointer;}
+
+/* ══════════════════════════════════════
+   SCREENS
+══════════════════════════════════════ */
+.screen{display:none;min-height:100vh;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ══════════════════════════════════════
+   SHARED COMPONENTS
+══════════════════════════════════════ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:6px;font-weight:600;font-size:13px;padding:8px 18px;transition:all .15s;white-space:nowrap;cursor:pointer;}
+.btn-blue{background:var(--blue);color:#fff;}
+.btn-blue:hover{background:var(--blue-d);}
+.btn-outline{background:#fff;color:var(--gray-700);border:1.5px solid var(--gray-300);}
+.btn-outline:hover{border-color:var(--blue);color:var(--blue);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#046c4e;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-red:hover{background:#c81e1e;}
+.btn-ghost{background:transparent;color:var(--gray-500);font-size:12px;}
+.btn-ghost:hover{color:var(--gray-900);}
+.btn-lg{padding:10px 24px;font-size:14px;}
+.btn:disabled{opacity:.4;pointer-events:none;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+.w-full{width:100%;}
+
+.topbar{background:var(--sidebar-bg);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.logo{font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;}
+.logo span{color:#60a5fa;}
+
+.alert{border-radius:var(--radius);padding:10px 14px;font-size:13px;display:none;}
+.alert.show{display:block;}
+.alert-red{background:var(--red-l);color:var(--red);border:1px solid #fca5a5;}
+.alert-green{background:var(--green-l);color:var(--green);border:1px solid var(--green-b);}
+
+/* ══════════════════════════════════════
+   UPLOAD SCREEN
+══════════════════════════════════════ */
+#screen-upload{background:var(--gray-50);}
+.upload-body{max-width:620px;width:100%;margin:0 auto;padding:40px 20px 80px;display:flex;flex-direction:column;gap:20px;}
+.upload-hero h2{font-size:22px;font-weight:700;margin-bottom:4px;}
+.upload-hero p{color:var(--gray-500);}
+
+.drop-zone{border:2px dashed var(--gray-300);border-radius:var(--radius);padding:40px 24px;text-align:center;cursor:pointer;background:#fff;position:relative;transition:all .2s;}
+.drop-zone:hover,.drop-zone.over{border-color:var(--blue);background:var(--blue-l);}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-zone .ico{font-size:32px;margin-bottom:10px;}
+.drop-zone h3{font-size:15px;font-weight:600;margin-bottom:4px;}
+.drop-zone p{color:var(--gray-500);font-size:13px;}
+.fmt-pills{display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
+.fmt-pill{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--gray-100);border:1px solid var(--gray-200);color:var(--gray-500);padding:2px 8px;border-radius:99px;}
+
+.or-divider{display:flex;align-items:center;gap:10px;color:var(--gray-400);font-size:12px;}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--gray-200);}
+
+.paste-box{background:#fff;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:12px;}
+.paste-box label{font-size:11px;font-weight:600;color:var(--gray-500);letter-spacing:.06em;}
+textarea{width:100%;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:6px;color:var(--gray-900);font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px 12px;resize:vertical;outline:none;transition:border-color .2s;line-height:1.7;}
+textarea:focus{border-color:var(--blue);}
+textarea::placeholder{color:var(--gray-400);}
+
+.hint{background:#fff;border:1px solid var(--gray-200);border-left:3px solid var(--blue);border-radius:var(--radius);padding:14px 16px;}
+.hint h4{font-size:12px;font-weight:600;color:var(--blue);margin-bottom:8px;}
+.hint pre{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray-500);line-height:1.9;white-space:pre-wrap;}
+
+/* ══════════════════════════════════════
+   PROCESSING SCREEN
+══════════════════════════════════════ */
+#screen-processing{align-items:center;justify-content:center;background:var(--gray-50);}
+.proc-box{background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:40px 32px;display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center;max-width:380px;width:90%;}
+.spin{width:44px;height:44px;border:3px solid var(--gray-200);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#proc-msg{font-size:14px;color:var(--gray-500);}
+.ocr-track{width:100%;background:var(--gray-100);border-radius:99px;height:5px;overflow:hidden;}
+.ocr-fill{height:100%;background:var(--blue);width:0%;border-radius:99px;transition:width .3s;}
+.ocr-lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray-400);margin-top:4px;}
+
+/* ══════════════════════════════════════
+   SERVER PIPELINE SCREEN
+══════════════════════════════════════ */
+#screen-pipeline{align-items:center;justify-content:center;background:var(--gray-50);}
+.pipe-box{background:#fff;border:1px solid var(--gray-200);border-radius:16px;padding:40px 36px;display:flex;flex-direction:column;align-items:center;gap:24px;text-align:center;max-width:460px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.07);}
+.pipe-box h3{font-size:17px;font-weight:700;}
+.pipe-box .sub{font-size:13px;color:var(--gray-500);}
+.pipe-track{width:100%;background:var(--gray-100);border-radius:99px;height:8px;overflow:hidden;}
+.pipe-fill{height:100%;background:linear-gradient(90deg,var(--blue),#60a5fa);border-radius:99px;width:0%;transition:width .6s ease;}
+.pipe-pct{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--blue);}
+.pipe-steps{width:100%;display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+.pipe-step{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;background:var(--gray-50);border:1px solid var(--gray-200);text-align:left;font-size:13px;transition:all .3s;}
+.pipe-step.ps-done{background:var(--green-l);border-color:var(--green-b);color:var(--green);}
+.pipe-step.ps-active{background:var(--blue-l);border-color:var(--blue-m);color:var(--blue);font-weight:600;}
+.pipe-step.ps-wait{color:var(--gray-400);}
+.ps-icon{font-size:16px;flex-shrink:0;}
+.pipe-cancel{background:none;border:none;font-size:12px;color:var(--gray-400);cursor:pointer;text-decoration:underline;margin-top:4px;}
+.pipe-cancel:hover{color:var(--red);}
+/* Server status badge on upload screen */
+.srv-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:99px;border:1px solid var(--gray-200);background:#fff;cursor:default;}
+.srv-dot{width:7px;height:7px;border-radius:50%;background:var(--gray-300);}
+.srv-badge.srv-on .srv-dot{background:var(--green-b);}
+.srv-badge.srv-off .srv-dot{background:var(--red);}
+.srv-badge.srv-on{border-color:var(--green-b);color:var(--green);}
+.srv-badge.srv-off{border-color:#fca5a5;color:var(--red);}
+.srv-offline-note{font-size:12px;color:var(--orange);background:var(--orange-l);border:1px solid #fde68a;border-radius:6px;padding:8px 12px;display:none;}
+.srv-offline-note.show{display:block;}
+
+/* ══════════════════════════════════════
+   CONFIG SCREEN
+══════════════════════════════════════ */
+#screen-config{background:var(--gray-50);}
+.config-body{max-width:520px;width:100%;margin:0 auto;padding:40px 20px 80px;display:flex;flex-direction:column;gap:20px;}
+.config-body h2{font-size:20px;font-weight:700;}
+.config-body > p{color:var(--gray-500);}
+.stats-row{display:flex;gap:12px;}
+.stat-chip{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:12px 16px;display:flex;flex-direction:column;gap:2px;min-width:110px;}
+.stat-chip .sv{font-size:22px;font-weight:700;color:var(--blue);font-family:'JetBrains Mono',monospace;}
+.stat-chip .sl{font-size:11px;color:var(--gray-500);}
+.form-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:16px;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:12px;font-weight:600;color:var(--gray-700);}
+.fg input,.fg select{background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:6px;padding:8px 10px;font-size:13px;color:var(--gray-900);outline:none;transition:border-color .2s;}
+.fg input:focus,.fg select:focus{border-color:var(--blue);}
+.fg .note{font-size:11px;color:var(--gray-400);}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+/* ══════════════════════════════════════
+   INSTRUCTIONS SCREEN
+══════════════════════════════════════ */
+#screen-instructions{background:#fff;}
+.inst-top{background:var(--sidebar-bg);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+.inst-top .tname{color:var(--blue-m);font-size:13px;font-weight:500;}
+.inst-body{max-width:740px;margin:0 auto;padding:32px 20px 120px;display:flex;flex-direction:column;gap:24px;}
+.inst-title{font-size:20px;font-weight:700;}
+.inst-meta{color:var(--gray-500);font-size:13px;}
+.inst-section h3{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.inst-section h3::before{content:'';display:block;width:3px;height:14px;background:var(--blue);border-radius:99px;}
+.ilist{list-style:none;display:flex;flex-direction:column;gap:6px;}
+.ilist li{font-size:13px;color:var(--gray-700);padding:6px 10px;background:var(--gray-50);border-radius:6px;display:flex;gap:8px;}
+.ilist li::before{content:'›';color:var(--blue);font-weight:700;flex-shrink:0;}
+.legend-grid{display:flex;flex-direction:column;gap:8px;}
+.l-item{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--gray-700);}
+.l-badge{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;flex-shrink:0;}
+.inst-footer{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--gray-200);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.agree-wrap{display:flex;align-items:center;gap:8px;font-size:13px;}
+.agree-wrap input{width:16px;height:16px;accent-color:var(--blue);}
+
+/* ══════════════════════════════════════
+   TEST SCREEN — TESTBOOK STYLE
+══════════════════════════════════════ */
+#screen-test{min-height:100vh;flex-direction:column;}
+
+/* Top bar */
+.test-topbar{
+  background:var(--sidebar-bg);height:52px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 16px;gap:12px;flex-shrink:0;
+  position:sticky;top:0;z-index:200;
+}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.test-title-bar{color:var(--blue-m);font-size:13px;font-weight:500;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* Section tabs bar */
+.section-tabs-bar{background:#fff;border-bottom:2px solid var(--gray-200);display:flex;align-items:center;gap:0;overflow-x:auto;flex-shrink:0;}
+.section-tabs-bar::-webkit-scrollbar{height:3px;}
+.section-tabs-bar::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:99px;}
+.sec-tab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--gray-500);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;transition:all .15s;}
+.sec-tab:hover{color:var(--blue);}
+.sec-tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600;}
+
+/* Timer */
+.timer-wrap{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border-radius:6px;padding:6px 12px;}
+.timer-lbl{font-size:10px;color:var(--blue-m);}
+.timer-val{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:#fff;letter-spacing:.05em;}
+.timer-wrap.warn{background:rgba(239,68,68,.15);}
+.timer-wrap.warn .timer-val{color:#fca5a5;}
+
+/* Test body */
+.test-body{display:flex;flex:1;overflow:hidden;}
+
+/* Question panel */
+.q-panel{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0;}
+.q-panel::-webkit-scrollbar{width:4px;}
+.q-panel::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:99px;}
+
+.q-header{background:#fff;border-bottom:1px solid var(--gray-200);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.q-num{font-size:13px;font-weight:600;color:var(--gray-700);}
+.q-marks{display:flex;gap:6px;}
+.mark-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;}
+.mc-pos{background:var(--green-l);color:var(--green);}
+.mc-neg{background:var(--red-l);color:var(--red);}
+
+.q-content{padding:24px 20px 16px;background:var(--gray-50);flex:1;}
+.q-text{font-size:15px;font-weight:500;line-height:1.7;color:var(--gray-900);margin-bottom:24px;}
+
+.options{display:flex;flex-direction:column;gap:10px;}
+.opt{
+  display:flex;align-items:flex-start;gap:12px;
+  background:#fff;border:1.5px solid var(--gray-200);border-radius:var(--radius);
+  padding:12px 14px;cursor:pointer;transition:all .15s;text-align:left;width:100%;
+  font-size:14px;line-height:1.5;color:var(--gray-800);
+}
+.opt:hover{border-color:var(--blue);background:var(--blue-l);}
+.opt.sel{border-color:var(--blue);background:var(--blue-l);}
+.opt.correct{border-color:var(--green-b);background:var(--green-l);}
+.opt.wrong{border-color:#fca5a5;background:var(--red-l);}
+.opt-radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--gray-300);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;transition:all .15s;}
+.opt.sel .opt-radio{border-color:var(--blue);}
+.opt.sel .opt-radio::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--blue);}
+.opt.correct .opt-radio{border-color:var(--green);background:var(--green);}
+.opt.correct .opt-radio::after{content:'✓';color:#fff;font-size:10px;font-weight:700;}
+.opt.wrong .opt-radio{border-color:var(--red);background:var(--red);}
+.opt.wrong .opt-radio::after{content:'✗';color:#fff;font-size:10px;font-weight:700;}
+.opt-key{font-weight:600;color:var(--gray-500);font-size:13px;}
+.opt.sel .opt-key{color:var(--blue);}
+.opt.correct .opt-key{color:var(--green);}
+.opt.wrong .opt-key{color:var(--red);}
+
+/* Action bar */
+.q-actions{background:#fff;border-top:1px solid var(--gray-200);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;flex-shrink:0;}
+.qa-left{display:flex;gap:8px;flex-wrap:wrap;}
+.btn-mrk{background:var(--purple-l);color:var(--purple);border:1px solid #c4b5fd;font-size:12px;}
+.btn-mrk:hover{background:#ddd6fe;}
+.btn-clr{background:var(--orange-l);color:var(--orange);border:1px solid #fde68a;font-size:12px;}
+.btn-clr:hover{background:#fde68a;}
+.qa-right{display:flex;gap:8px;}
+
+/* Sidebar */
+.test-sidebar{
+  width:270px;flex-shrink:0;background:#fff;border-left:1px solid var(--gray-200);
+  overflow-y:auto;display:flex;flex-direction:column;
+}
+.test-sidebar::-webkit-scrollbar{width:3px;}
+.test-sidebar::-webkit-scrollbar-thumb{background:var(--gray-200);}
+
+.sb-candidate{background:var(--sidebar-bg);padding:12px 14px;display:flex;align-items:center;gap:10px;}
+.sb-avatar{width:38px;height:38px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0;}
+.sb-name{font-size:13px;font-weight:600;color:#fff;}
+.sb-sub{font-size:11px;color:var(--blue-m);}
+
+.sb-section{padding:12px 14px;border-bottom:1px solid var(--gray-100);}
+.sb-section h4{font-size:10px;font-weight:700;color:var(--gray-400);letter-spacing:.1em;margin-bottom:10px;}
+
+/* Palette */
+.palette{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
+.pal-btn{
+  width:100%;aspect-ratio:1;border:none;border-radius:6px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;
+  color:#fff;cursor:pointer;transition:transform .1s;
+  display:flex;align-items:center;justify-content:center;position:relative;
+}
+.pal-btn:hover{transform:scale(1.1);}
+.pal-btn.cur{outline:2.5px solid var(--blue);outline-offset:2px;}
+.s-nv{background:var(--nv);}
+.s-na{background:var(--na);}
+.s-ans{background:var(--ans);}
+.s-mrk{background:var(--mrk);}
+.s-amrk{background:var(--amrk);}
+.s-amrk::after{content:'✓';position:absolute;top:-3px;right:-3px;width:11px;height:11px;background:var(--green);border-radius:50%;font-size:7px;display:flex;align-items:center;justify-content:center;}
+
+/* Legend */
+.leg-list{display:flex;flex-direction:column;gap:6px;}
+.leg-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-600);}
+.leg-dot{width:20px;height:20px;border-radius:4px;flex-shrink:0;}
+
+.sb-submit-area{padding:12px 14px;margin-top:auto;}
+
+/* Sidebar summary counts */
+.sb-counts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
+.sbc{background:var(--gray-50);border-radius:6px;padding:6px 8px;text-align:center;}
+.sbc-n{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;}
+.sbc-l{font-size:10px;color:var(--gray-400);}
+.sbc-ans .sbc-n{color:var(--green);}
+.sbc-na .sbc-n{color:var(--red);}
+
+/* ══════════════════════════════════════
+   MODALS
+══════════════════════════════════════ */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:999;padding:16px;}
+.overlay.open{display:flex;}
+.modal{background:#fff;border-radius:12px;padding:24px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.15);}
+.modal h3{font-size:17px;font-weight:700;margin-bottom:6px;}
+.modal .sub{color:var(--gray-500);font-size:13px;margin-bottom:20px;}
+.modal-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.ms{background:var(--gray-50);border-radius:8px;padding:12px;text-align:center;}
+.ms-n{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;}
+.ms-l{font-size:11px;color:var(--gray-400);margin-top:2px;}
+.ms-ans .ms-n{color:var(--green);}
+.ms-na .ms-n{color:var(--red);}
+.ms-mrk .ms-n{color:var(--purple);}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;}
+
+.warn-modal{background:var(--red-l);border:1.5px solid #fca5a5;}
+.warn-modal h3{color:var(--red);}
+
+/* ══════════════════════════════════════
+   RESULT SCREEN
+══════════════════════════════════════ */
+#screen-result{background:var(--gray-50);}
+.result-topbar{background:var(--sidebar-bg);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+.result-body{max-width:760px;width:100%;margin:0 auto;padding:32px 20px 80px;display:flex;flex-direction:column;gap:24px;}
+
+/* Score hero */
+.score-hero{background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:28px;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;}
+@media(max-width:540px){.score-hero{grid-template-columns:1fr;}}
+.ring-wrap{position:relative;width:130px;height:130px;flex-shrink:0;}
+.ring-wrap svg{transform:rotate(-90deg);}
+.ring-wrap circle{fill:none;stroke-width:10;}
+.r-bg{stroke:var(--gray-200);}
+.r-fill{stroke:var(--blue);stroke-linecap:round;transition:stroke-dashoffset 1.2s cubic-bezier(.34,1.56,.64,1);}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-pct{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;}
+.ring-sub{font-size:10px;color:var(--gray-400);}
+.score-info h2{font-size:20px;font-weight:700;margin-bottom:4px;}
+.score-info .stitle{color:var(--gray-500);font-size:13px;margin-bottom:16px;}
+.score-stats{display:flex;gap:16px;flex-wrap:wrap;}
+.ss{display:flex;flex-direction:column;}
+.ss .sv{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;}
+.ss .sl{font-size:11px;color:var(--gray-400);}
+.sv-blue{color:var(--blue);}
+.sv-green{color:var(--green);}
+.sv-red{color:var(--red);}
+
+/* Action cards */
+.action-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:500px){.action-cards{grid-template-columns:1fr;}}
+.action-card{background:#fff;border:1.5px solid var(--gray-200);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color .2s;}
+.action-card:hover{border-color:var(--blue);}
+.ac-icon{font-size:28px;}
+.ac-title{font-size:14px;font-weight:700;}
+.ac-desc{font-size:12px;color:var(--gray-500);line-height:1.5;}
+
+/* Answer key upload in result */
+.ak-upload-area{background:var(--gray-50);border:1.5px dashed var(--gray-300);border-radius:8px;padding:16px;cursor:pointer;position:relative;text-align:center;transition:all .2s;}
+.ak-upload-area:hover{border-color:var(--blue);background:var(--blue-l);}
+.ak-upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.ak-status{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 10px;border-radius:6px;background:var(--gray-100);border:1px solid var(--gray-200);}
+.ak-status.ok{background:var(--green-l);border-color:var(--green-b);color:var(--green);}
+.ak-dot{width:8px;height:8px;border-radius:50%;background:var(--gray-400);}
+.ak-status.ok .ak-dot{background:var(--green);}
+.ak-or{text-align:center;font-size:11px;color:var(--gray-400);}
+
+/* Score breakdown after key loaded */
+.score-breakdown{display:none;}
+.score-breakdown.show{display:block;}
+.breakdown-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:0;}
+.bstat{background:var(--gray-50);border-radius:8px;padding:12px;text-align:center;}
+.bstat .bv{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;}
+.bstat .bl{font-size:11px;color:var(--gray-400);margin-top:2px;}
+
+/* Review table */
+.review-section h3{font-size:15px;font-weight:700;margin-bottom:12px;}
+.rev-list{display:flex;flex-direction:column;gap:8px;}
+.rev-item{background:#fff;border:1px solid var(--gray-200);border-radius:8px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;}
+.rev-item.ri-c{border-color:#86efac;}
+.rev-item.ri-w{border-color:#fca5a5;}
+.rev-icon{font-size:16px;flex-shrink:0;}
+.rev-q{font-size:13px;font-weight:500;margin-bottom:4px;}
+.rev-ans{font-size:12px;color:var(--gray-500);font-family:'JetBrains Mono',monospace;display:flex;gap:12px;flex-wrap:wrap;}
+.ra-c{color:var(--green);}
+.ra-w{color:var(--red);}
+
+/* ══════════════════════════════════════
+   PRINT / PDF STYLES
+══════════════════════════════════════ */
+@media print{
+  body{background:#fff;}
+  .no-print{display:none!important;}
+  .print-only{display:block!important;}
+  #print-sheet{display:block!important;}
+}
+#print-sheet{display:none;}
+
+@media(max-width:768px){
+  .test-sidebar{display:none;}
+  .action-cards{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     UPLOAD SCREEN
+══════════════════════════════════════════════ -->
+<div class="screen active" id="screen-upload">
+  <div class="topbar">
+    <div class="logo">Exam<span>Desk</span></div>
+    <span style="color:var(--blue-m);font-size:12px;">Computer Based Test · No Login Required</span>
+  </div>
+  <div style="display:flex;justify-content:center;flex:1;">
+    <div class="upload-body">
+      <div class="upload-hero">
+        <h2>Upload your question paper</h2>
+        <p>We'll convert it into a Testbook-style CBT. Free, instant, no login.</p>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span class="srv-badge" id="srv-badge"><span class="srv-dot"></span><span id="srv-badge-lbl">Checking AI server…</span></span>
+        <span style="font-size:12px;color:var(--gray-400);">Smart PDF: converts + OCR + Gemini AI automatically</span>
+      </div>
+      <div class="srv-offline-note" id="srv-offline-note">⚠️ AI server is offline. PDFs will be processed with in-browser OCR only — paste text manually or start the Flask server.</div>
+
+      <div id="upload-alert" class="alert alert-red"></div>
+
+      <div class="drop-zone" id="dz">
+        <input type="file" id="fi" accept=".txt,.pdf,.docx,.doc,.png,.jpg,.jpeg,.webp"/>
+        <div class="ico">📄</div>
+        <h3>Drop your file here or click to browse</h3>
+        <p>PDF, Word, plain text, or even a scanned image — OCR included</p>
+        <div class="fmt-pills">
+          <span class="fmt-pill">.pdf</span><span class="fmt-pill">.docx</span>
+          <span class="fmt-pill">.txt</span><span class="fmt-pill">.png / .jpg</span>
+        </div>
+      </div>
+
+      <div class="or-divider">or paste your questions below</div>
+
+      <div class="paste-box">
+        <label>PASTE / TYPE MCQ TEXT</label>
+        <textarea id="paste-in" rows="6" placeholder="1. What is photosynthesis?
+A) Breathing process
+B) Converting sunlight to energy
+C) Water absorption
+D) Mineral uptake
+
+2. The powerhouse of the cell is the ___
+A) Nucleus   B) Mitochondria   C) Ribosome   D) Golgi body"></textarea>
+        <div class="btn-row">
+          <button class="btn btn-outline" id="btn-cb" style="flex:1;">📋 Paste from clipboard</button>
+          <button class="btn btn-blue" id="btn-pp" style="flex:1;">Parse & Continue →</button>
+        </div>
+      </div>
+
+      <div class="hint">
+        <h4>📐 Accepted question format</h4>
+        <pre>1. Question text here?
+A) Option one
+B) Option two
+C) Option three
+D) Option four
+
+2. Another question...
+   (Answer key is uploaded separately after the test)</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PROCESSING (in-browser Tesseract fallback)
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-processing">
+  <div class="proc-box">
+    <div class="spin"></div>
+    <div id="proc-msg">Reading file...</div>
+    <div id="ocr-section" style="width:100%;display:none;">
+      <div class="ocr-track"><div class="ocr-fill" id="ocr-fill"></div></div>
+      <div class="ocr-lbl">Tesseract OCR — runs in your browser, zero cost</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PIPELINE SCREEN (server-assisted: PDF→OCR→Gemini)
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-pipeline">
+  <div class="pipe-box">
+    <div class="spin"></div>
+    <div>
+      <h3>Processing your PDF</h3>
+      <div class="sub" id="pipe-sub">Starting pipeline…</div>
+    </div>
+    <div style="width:100%;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--gray-500);">Progress</span>
+        <span class="pipe-pct" id="pipe-pct">0%</span>
+      </div>
+      <div class="pipe-track"><div class="pipe-fill" id="pipe-fill"></div></div>
+    </div>
+    <div class="pipe-steps" id="pipe-steps">
+      <div class="pipe-step ps-wait" id="pstep-convert">
+        <span class="ps-icon">🖼️</span><span>Convert PDF → Images</span>
+      </div>
+      <div class="pipe-step ps-wait" id="pstep-ocr">
+        <span class="ps-icon">🔍</span><span>OCR: Extract text from images</span>
+      </div>
+      <div class="pipe-step ps-wait" id="pstep-gemini">
+        <span class="ps-icon">✨</span><span>Gemini AI: Parse questions</span>
+      </div>
+    </div>
+    <button class="pipe-cancel" id="pipe-cancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     CONFIG SCREEN
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-config">
+  <div class="topbar"><div class="logo">Exam<span>Desk</span></div></div>
+  <div style="display:flex;justify-content:center;flex:1;">
+    <div class="config-body">
+      <div><h2>Configure your test</h2><p style="color:var(--gray-500);margin-top:4px;">Set parameters before starting.</p></div>
+      <div class="stats-row">
+        <div class="stat-chip"><span class="sv" id="cfg-qc">0</span><span class="sl">Questions found</span></div>
+        <div class="stat-chip"><span class="sv" id="cfg-sc">0</span><span class="sl">Sections</span></div>
+      </div>
+      <div class="form-card">
+        <div class="fg">
+          <label>TEST TITLE</label>
+          <input id="cfg-title" type="text" value="Practice Test" placeholder="e.g. SSC CGL Mock Test 1"/>
+        </div>
+        <div class="fg">
+          <label>YOUR NAME <span style="color:var(--gray-400);font-weight:400;">(shown on response sheet)</span></label>
+          <input id="cfg-name" type="text" placeholder="Enter your name"/>
+        </div>
+        <div class="fg-row">
+          <div class="fg">
+            <label>DURATION (minutes)</label>
+            <input id="cfg-dur" type="number" value="60" min="1" max="360"/>
+            <span class="note">Enter 0 for no time limit</span>
+          </div>
+          <div class="fg">
+            <label>MARKS PER QUESTION</label>
+            <input id="cfg-marks" type="number" value="1" min="0.5" max="10" step="0.5"/>
+          </div>
+        </div>
+        <div class="fg-row">
+          <div class="fg">
+            <label>NEGATIVE MARKING</label>
+            <select id="cfg-neg">
+              <option value="0">None</option>
+              <option value="0.25">−¼ mark</option>
+              <option value="0.33">−⅓ mark</option>
+              <option value="0.5">−½ mark</option>
+              <option value="1">−1 mark</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>SHUFFLE QUESTIONS</label>
+            <select id="cfg-shuf">
+              <option value="no">Keep original order</option>
+              <option value="yes">Randomise order</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-blue btn-lg" id="btn-to-inst">View Instructions →</button>
+        <button class="btn btn-ghost" id="btn-back-cfg">← Re-upload</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     INSTRUCTIONS
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-instructions">
+  <div class="inst-top">
+    <div class="logo">Exam<span>Desk</span></div>
+    <span class="tname" id="inst-tname"></span>
+  </div>
+  <div style="overflow-y:auto;flex:1;">
+    <div class="inst-body">
+      <div><div class="inst-title">General Instructions</div><div class="inst-meta" id="inst-meta"></div></div>
+      <div class="inst-section">
+        <h3>Test Details</h3>
+        <ul class="ilist" id="inst-details"></ul>
+      </div>
+      <div class="inst-section">
+        <h3>Navigation</h3>
+        <ul class="ilist">
+          <li>Click an option to select your answer. Click again to deselect.</li>
+          <li>Use <strong>Save &amp; Next</strong> to confirm and proceed to the next question.</li>
+          <li>Use <strong>Previous</strong> to go back and change your answer any time.</li>
+          <li>Click any number in the <strong>Question Palette</strong> to jump directly to that question.</li>
+          <li>Use <strong>Mark for Review</strong> to flag a question to revisit later.</li>
+          <li>Use <strong>Clear Response</strong> to remove your selected answer.</li>
+        </ul>
+      </div>
+      <div class="inst-section">
+        <h3>After the Test</h3>
+        <ul class="ilist">
+          <li>You can upload a separate answer key file after submission for auto-scoring.</li>
+          <li>You can also download a PDF response sheet with all your answers.</li>
+        </ul>
+      </div>
+      <div class="inst-section">
+        <h3>Question Palette Legend</h3>
+        <div class="legend-grid">
+          <div class="l-item"><div class="l-badge" style="background:var(--nv);">1</div> Not Visited — you haven't opened this question yet.</div>
+          <div class="l-item"><div class="l-badge" style="background:var(--na);">2</div> Not Answered — visited but no answer selected.</div>
+          <div class="l-item"><div class="l-badge" style="background:var(--ans);">3</div> Answered — you have selected an answer.</div>
+          <div class="l-item"><div class="l-badge" style="background:var(--mrk);">4</div> Marked for Review — flagged, no answer selected.</div>
+          <div class="l-item"><div class="l-badge" style="background:var(--amrk);">5</div> Answered &amp; Marked — answered and flagged.</div>
+        </div>
+      </div>
+      <div class="inst-section">
+        <h3>Important</h3>
+        <ul class="ilist">
+          <li>The timer starts the moment you click <strong>Start Test</strong>.</li>
+          <li>The test enters <strong>full-screen mode</strong>. Exiting will generate a warning.</li>
+          <li>Switching tabs will be detected and logged.</li>
+          <li>Do <strong>not</strong> refresh the page — your progress will be lost.</li>
+          <li>The test auto-submits when time runs out.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="inst-footer">
+    <label class="agree-wrap"><input type="checkbox" id="agree-chk"/> I have read and understood all instructions.</label>
+    <button class="btn btn-blue btn-lg" id="btn-start" disabled>Start Test →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TEST SCREEN
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-test">
+  <!-- Top bar -->
+  <div class="test-topbar no-print">
+    <div class="topbar-left">
+      <div class="logo">Exam<span>Desk</span></div>
+      <div class="test-title-bar" id="tb-title"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="timer-wrap" id="tw">
+        <div><div class="timer-lbl">TIME LEFT</div><div class="timer-val" id="tv">--:--:--</div></div>
+      </div>
+      <button class="btn btn-red" id="btn-submit">Submit Test</button>
+    </div>
+  </div>
+
+  <!-- Section tabs -->
+  <div class="section-tabs-bar no-print" id="sec-tabs"></div>
+
+  <!-- Body -->
+  <div class="test-body" style="flex:1;overflow:hidden;">
+
+    <!-- Question panel -->
+    <div class="q-panel">
+      <div class="q-header no-print">
+        <div class="q-num" id="q-num-lbl">Question 1 of 60</div>
+        <div class="q-marks">
+          <span class="mark-chip mc-pos" id="mc-pos">+1</span>
+          <span class="mark-chip mc-neg" id="mc-neg" style="display:none;">−0.25</span>
+        </div>
+      </div>
+      <div class="q-content">
+        <div class="q-text" id="q-text">Loading...</div>
+        <div class="options" id="opts"></div>
+      </div>
+      <div class="q-actions no-print">
+        <div class="qa-left">
+          <button class="btn btn-mrk" id="btn-mrk">🚩 Mark for Review</button>
+          <button class="btn btn-clr" id="btn-clr">✕ Clear Response</button>
+        </div>
+        <div class="qa-right">
+          <button class="btn btn-outline" id="btn-prev">← Previous</button>
+          <button class="btn btn-blue" id="btn-snxt">Save &amp; Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="test-sidebar no-print">
+      <div class="sb-candidate">
+        <div class="sb-avatar" id="sb-av">U</div>
+        <div><div class="sb-name" id="sb-nm">Candidate</div><div class="sb-sub" id="sb-sub">Practice Test</div></div>
+      </div>
+
+      <div class="sb-section">
+        <h4>SUMMARY</h4>
+        <div class="sb-counts">
+          <div class="sbc sbc-ans"><div class="sbc-n" id="sb-ans-c">0</div><div class="sbc-l">Answered</div></div>
+          <div class="sbc sbc-na"><div class="sbc-n" id="sb-na-c">0</div><div class="sbc-l">Not Answered</div></div>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <h4>QUESTION PALETTE</h4>
+        <div class="palette" id="palette"></div>
+      </div>
+
+      <div class="sb-section">
+        <h4>LEGEND</h4>
+        <div class="leg-list">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--nv);"></div>Not Visited</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--na);"></div>Not Answered</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--ans);"></div>Answered</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--mrk);"></div>Marked for Review</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--amrk);"></div>Answered &amp; Marked</div>
+        </div>
+      </div>
+
+      <div class="sb-submit-area">
+        <button class="btn btn-red w-full" id="btn-submit2">Submit Test</button>
+        <div style="text-align:center;margin-top:6px;font-size:11px;color:var(--gray-400);">All answered questions will be evaluated</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     RESULT SCREEN
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-result">
+  <div class="result-topbar no-print">
+    <div class="logo">Exam<span>Desk</span></div>
+    <button class="btn btn-outline" id="btn-new" style="color:#fff;border-color:rgba(255,255,255,.3);">New Test</button>
+  </div>
+  <div style="overflow-y:auto;flex:1;">
+    <div class="result-body">
+
+      <!-- Score hero -->
+      <div class="score-hero">
+        <div class="ring-wrap">
+          <svg width="130" height="130" viewBox="0 0 130 130">
+            <circle class="r-bg" cx="65" cy="65" r="55"/>
+            <circle class="r-fill" id="r-fill" cx="65" cy="65" r="55" stroke-dasharray="345.4" stroke-dashoffset="345.4"/>
+          </svg>
+          <div class="ring-center"><div class="ring-pct" id="r-pct">—</div><div class="ring-sub">SCORE %</div></div>
+        </div>
+        <div class="score-info">
+          <h2 id="r-title">Test Submitted</h2>
+          <div class="stitle" id="r-sub"></div>
+          <div class="score-stats">
+            <div class="ss"><span class="sv sv-blue" id="rs-score">—</span><span class="sl">Score</span></div>
+            <div class="ss"><span class="sv sv-green" id="rs-c">—</span><span class="sl">Correct</span></div>
+            <div class="ss"><span class="sv sv-red" id="rs-w">—</span><span class="sl">Wrong</span></div>
+            <div class="ss"><span class="sv" id="rs-sk">—</span><span class="sl">Skipped</span></div>
+            <div class="ss"><span class="sv" id="rs-t">—</span><span class="sl">Time taken</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score detail (shown after key) -->
+      <div class="score-breakdown" id="score-breakdown">
+        <div class="breakdown-grid">
+          <div class="bstat"><div class="bv" id="bd-score" style="color:var(--blue);">—</div><div class="bl">Final Score</div></div>
+          <div class="bstat"><div class="bv" id="bd-max" style="color:var(--gray-500);">—</div><div class="bl">Max Score</div></div>
+          <div class="bstat"><div class="bv" id="bd-pct" style="color:var(--green);">—</div><div class="bl">Percentage</div></div>
+        </div>
+      </div>
+
+      <!-- Action cards -->
+      <div class="action-cards no-print">
+        <!-- Answer key card -->
+        <div class="action-card" id="ak-card">
+          <div class="ac-icon">🗝️</div>
+          <div><div class="ac-title">Check with Answer Key</div><div class="ac-desc">Upload a separate answer key file or paste answers to get your score.</div></div>
+          <div class="ak-upload-area" id="ak-dz">
+            <input type="file" id="ak-fi" accept=".txt,.pdf,.docx,.doc,.png,.jpg,.jpeg,.webp"/>
+            <div style="font-size:12px;color:var(--gray-500);">📂 Drop key file or click to browse</div>
+          </div>
+          <div class="ak-or">— or type / paste answers —</div>
+          <textarea id="ak-paste" rows="3" placeholder="1. A&#10;2. C&#10;3. B   or compact: A, C, B, D, A"></textarea>
+          <div class="btn-row">
+            <button class="btn btn-outline" id="btn-ak-cb" style="flex:1;font-size:12px;">📋 Paste</button>
+            <button class="btn btn-green" id="btn-ak-load" style="flex:1;font-size:12px;">Load Key →</button>
+          </div>
+          <div class="ak-status" id="ak-stat"><span class="ak-dot"></span><span id="ak-stat-lbl">No key loaded</span></div>
+        </div>
+
+        <!-- PDF download card -->
+        <div class="action-card">
+          <div class="ac-icon">📄</div>
+          <div><div class="ac-title">Download Response Sheet</div><div class="ac-desc">Get a printable PDF with all questions and your marked answers (+ correct answers if key is loaded).</div></div>
+          <button class="btn btn-blue btn-lg w-full" id="btn-pdf" style="margin-top:auto;">⬇ Download PDF</button>
+        </div>
+      </div>
+
+      <!-- Review -->
+      <div class="review-section" id="rev-section" style="display:none;">
+        <h3>Answer Review</h3>
+        <div class="rev-list" id="rev-list"></div>
+      </div>
+
+      <div class="btn-row no-print" style="justify-content:center;">
+        <button class="btn btn-blue btn-lg" id="btn-retake">Retake Test</button>
+        <button class="btn btn-outline btn-lg" id="btn-new2">New Document</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════════ -->
+<div class="overlay" id="ov-submit">
+  <div class="modal">
+    <h3>Submit Test?</h3>
+    <div class="sub">Review your attempt before final submission.</div>
+    <div class="modal-stats">
+      <div class="ms ms-ans"><div class="ms-n" id="ms-a">0</div><div class="ms-l">Answered</div></div>
+      <div class="ms ms-na"><div class="ms-n" id="ms-na">0</div><div class="ms-l">Not Answered</div></div>
+      <div class="ms ms-mrk"><div class="ms-n" id="ms-m">0</div><div class="ms-l">Marked</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btn-cancel-sub">Cancel</button>
+      <button class="btn btn-red" id="btn-confirm-sub">Yes, Submit</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-warn">
+  <div class="modal warn-modal">
+    <h3>⚠️ Warning</h3>
+    <div class="sub" id="warn-msg">You left the exam window.</div>
+    <div class="modal-footer">
+      <button class="btn btn-red" id="btn-dismiss-warn">Return to Test</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-timeup">
+  <div class="modal">
+    <h3>⏰ Time's Up!</h3>
+    <div class="sub">Your time has expired. The test is being submitted automatically.</div>
+    <div class="modal-footer"><button class="btn btn-blue" id="btn-timeup-ok">View Results</button></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PRINT SHEET (hidden, shown only on print)
+══════════════════════════════════════════════ -->
+<div id="print-sheet"></div>
+
+<script>
+// ══ PDF.js ══
+if(typeof pdfjsLib!=='undefined')
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ══════════════════════════════════════
+// SERVER INTEGRATION
+// ══════════════════════════════════════
+const SERVER_URL='http://127.0.0.1:5050';
+let serverOnline=false;
+let pipelineJobId=null;
+let pipelinePollInterval=null;
+
+async function checkServer(){
+  try{
+    const r=await fetch(SERVER_URL+'/health',{signal:AbortSignal.timeout(2500)});
+    if(r.ok){
+      serverOnline=true;
+      const b=$('srv-badge');
+      b.classList.remove('srv-off');b.classList.add('srv-on');
+      $('srv-badge-lbl').textContent='AI Server Online';
+      $('srv-offline-note').classList.remove('show');
+    }
+  }catch(e){
+    serverOnline=false;
+    const b=$('srv-badge');
+    b.classList.remove('srv-on');b.classList.add('srv-off');
+    $('srv-badge-lbl').textContent='AI Server Offline';
+    $('srv-offline-note').classList.add('show');
+  }
+}
+checkServer();
+setInterval(checkServer,15000);
+
+// ── Pipeline step UI helpers ──
+function pipeStep(id,state){
+  const el=$(id);
+  el.classList.remove('ps-wait','ps-active','ps-done');
+  el.classList.add(state);
+  if(state==='ps-done') el.querySelector('.ps-icon').textContent='✅';
+  if(state==='ps-active') el.querySelector('.ps-icon').textContent=
+    id==='pstep-convert'?'🖼️':id==='pstep-ocr'?'🔍':'✨';
+}
+
+function updatePipeUI(j){
+  $('pipe-sub').textContent=j.step||'Working…';
+  const pct=j.progress||0;
+  $('pipe-fill').style.width=pct+'%';
+  $('pipe-pct').textContent=pct+'%';
+
+  // Step coloring based on status
+  const s=j.status;
+  if(s==='converting'){
+    pipeStep('pstep-convert','ps-active');
+    pipeStep('pstep-ocr','ps-wait');
+    pipeStep('pstep-gemini','ps-wait');
+  } else if(s==='ocr'){
+    pipeStep('pstep-convert','ps-done');
+    pipeStep('pstep-ocr','ps-active');
+    pipeStep('pstep-gemini','ps-wait');
+  } else if(s==='gemini'){
+    pipeStep('pstep-convert','ps-done');
+    pipeStep('pstep-ocr','ps-done');
+    pipeStep('pstep-gemini','ps-active');
+  } else if(s==='done'){
+    pipeStep('pstep-convert','ps-done');
+    pipeStep('pstep-ocr','ps-done');
+    pipeStep('pstep-gemini','ps-done');
+  }
+}
+
+async function startPipeline(file){
+  pipelineJobId=null;
+  clearInterval(pipelinePollInterval);
+
+  // Reset step icons
+  ['pstep-convert','pstep-ocr','pstep-gemini'].forEach(id=>{
+    const el=$(id);
+    el.classList.remove('ps-done','ps-active');el.classList.add('ps-wait');
+    el.querySelector('.ps-icon').textContent=
+      id==='pstep-convert'?'🖼️':id==='pstep-ocr'?'🔍':'✨';
+  });
+  $('pipe-fill').style.width='0%';
+  $('pipe-pct').textContent='0%';
+  $('pipe-sub').textContent='Uploading PDF…';
+  show('pipeline');
+
+  // Upload
+  const fd=new FormData();
+  fd.append('file',file);
+  let data;
+  try{
+    const r=await fetch(SERVER_URL+'/upload',{method:'POST',body:fd});
+    data=await r.json();
+    if(!r.ok) throw new Error(data.error||'Upload failed');
+  }catch(e){
+    show('upload');
+    showAlert('Pipeline error: '+e.message);
+    return;
+  }
+
+  pipelineJobId=data.job_id;
+
+  // Poll for status
+  pipelinePollInterval=setInterval(async()=>{
+    if(!pipelineJobId) return;
+    try{
+      const r=await fetch(`${SERVER_URL}/status/${pipelineJobId}`);
+      const j=await r.json();
+      updatePipeUI(j);
+
+      if(j.status==='done'){
+        clearInterval(pipelinePollInterval);
+        // Fetch result and load into CBT
+        const rr=await fetch(`${SERVER_URL}/result/${pipelineJobId}`);
+        const result=await rr.json();
+        loadGeminiResult(result);
+      } else if(j.status==='error'){
+        clearInterval(pipelinePollInterval);
+        show('upload');
+        showAlert('Pipeline failed: '+(j.error||'Unknown error'));
+      }
+    }catch(e){
+      // Network blip — keep polling
+    }
+  },2500);
+}
+
+// ── Load Gemini JSON into the CBT ──
+function loadGeminiResult(result){
+  questions=[];
+  (result.sections||[]).forEach(sec=>{
+    (sec.questions||[]).forEach(q=>{
+      questions.push({
+        q: q.text||'',
+        opts: (q.options||[]).map(o=>({k:o.key,t:o.text})),
+        ans: q.correctAnswer||null,
+        sec: sec.name||'General'
+      });
+    });
+  });
+
+  if(questions.length===0){
+    show('upload');
+    showAlert('Gemini returned no questions. Check the OCR quality and try again.');
+    return;
+  }
+
+  // Pre-fill config fields from Gemini metadata
+  if(result.testTitle) $('cfg-title').value=result.testTitle;
+  if(result.duration) $('cfg-dur').value=result.duration;
+  if(result.marksPerQuestion) $('cfg-marks').value=result.marksPerQuestion;
+  if(result.negativeMarking!==undefined && result.negativeMarking!==null){
+    $('cfg-neg').value=String(result.negativeMarking);
+  }
+
+  goConfig();
+}
+
+// ─────────────────────────────────────
+// ══ State ══
+let questions=[], qState=[], cfg={}, curQ=0, startTime=null, timerInt=null, violations=0, answerKeyMap={};
+
+const S={NV:'nv',NA:'na',ANS:'ans',MRK:'mrk',AMRK:'amrk'};
+
+// ══ Helpers ══
+const $=id=>document.getElementById(id);
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('screen-'+id).classList.add('active');}
+function ov(id,open){$('ov-'+id).classList.toggle('open',open);}
+function pm(msg){$('proc-msg').textContent=msg;}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function showAlert(msg){const el=$('upload-alert');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),7000);}
+
+// ══════════════════════════════════════
+// TEXT EXTRACTION
+// ══════════════════════════════════════
+const readTxt=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(f);});
+async function readDocx(f){const ab=await f.arrayBuffer();const r=await mammoth.extractRawText({arrayBuffer:ab});return r.value;}
+async function readPdf(f){
+  const ab=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  let t='';for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const c=await pg.getTextContent();t+=c.items.map(x=>x.str).join(' ')+'\n';}
+  return t;
+}
+function loadTess(){
+  return new Promise((res,rej)=>{
+    if(window.Tesseract){res();return;}
+    pm('Loading OCR engine...');
+    const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js';
+    s.onload=res;s.onerror=()=>rej(new Error('Failed to load OCR engine.'));
+    document.head.appendChild(s);
+  });
+}
+async function runOCR(f,isPdf){
+  await loadTess();
+  $('ocr-section').style.display='block';
+  const fill=$('ocr-fill');
+  let src=f;
+  if(isPdf){
+    pm('Rendering PDF page...');
+    const ab=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    const pg=await pdf.getPage(1);const vp=pg.getViewport({scale:2});
+    const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
+    await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;src=cv;
+  }
+  pm('Running OCR...');
+  const w=await Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text'){const p=Math.round(m.progress*100);fill.style.width=p+'%';pm(`OCR: ${p}%`);}}});
+  const{data:{text}}=await w.recognize(src);await w.terminate();fill.style.width='100%';return text;
+}
+async function extractText(f){
+  const ext=f.name.split('.').pop().toLowerCase();
+  const imgs=['png','jpg','jpeg','webp','bmp'];
+  if(ext==='txt'){pm('Reading text file...');return await readTxt(f);}
+  if(ext==='docx'||ext==='doc'){pm('Extracting from Word document...');return await readDocx(f);}
+  if(ext==='pdf'){pm('Reading PDF text layer...');const t=await readPdf(f);if(t&&t.replace(/\s/g,'').length>80)return t;pm('No text layer — switching to OCR...');return await runOCR(f,true);}
+  if(imgs.includes(ext)){pm('Image detected — running OCR...');return await runOCR(f,false);}
+  try{const t=await readTxt(f);if(t&&t.trim().length>30)return t;}catch(e){}
+  return await runOCR(f,false);
+}
+
+// ══════════════════════════════════════
+// MCQ PARSER
+// ══════════════════════════════════════
+function parseMCQs(text){
+  text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const lines=text.split('\n');
+  const out=[];let curQ=null,curOpts=[],curSec='General';
+  const push=()=>{if(curQ&&curOpts.length>=2)out.push({q:curQ.trim(),opts:curOpts,ans:null,sec:curSec});curQ=null;curOpts=[];};
+  for(const raw of lines){
+    const line=raw.trim();if(!line)continue;
+    if(/^(?:section|part)\s*[:\-]?\s*.+$/i.test(line)&&line.length<60&&!/^[(\[]?[A-Da-d][).\]]/.test(line)){push();curSec=line;continue;}
+    const qm=line.match(/^(?:Q\.?\s*)?(\d+)[.)]\s+(.+)/i);
+    const om=line.match(/^[(\[]?([A-Da-d])[).\]]\s+(.+)/);
+    const am=line.match(/^(?:answer|ans|key)[:\s]+([A-Da-d])/i);
+    const cm=line.match(/^[(\[]?([A-Da-d])[).\]]\s+[*✓✔]\s*(.+)/)||line.match(/^\*\s*[(\[]?([A-Da-d])[).\]]\s+(.+)/);
+    if(qm){push();curQ=qm[2];}
+    else if(cm&&curQ){curOpts.push({k:cm[1].toUpperCase(),t:cm[2].trim()});if(!curOpts.ans)curOpts.ans=cm[1].toUpperCase();}
+    else if(om&&curQ){curOpts.push({k:om[1].toUpperCase(),t:om[2].trim()});}
+    else if(am&&out.length>0){out[out.length-1].ans=am[1].toUpperCase();}
+    else if(curQ&&curOpts.length===0){curQ+=' '+line;}
+  }
+  push();return out;
+}
+
+// ══════════════════════════════════════
+// ANSWER KEY PARSER
+// ══════════════════════════════════════
+function parseAK(text){
+  text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+  const map={};
+  // Numbered: "1. A" / "1) A" / "1: A"
+  const numbered=/^(?:Q\.?\s*)?(\d+)[.):\-\s]+([A-Da-d])\b/gim;
+  let m;while((m=numbered.exec(text))!==null)map[parseInt(m[1])]=m[2].toUpperCase();
+  if(Object.keys(map).length>0)return map;
+  // Comma / space separated
+  const tokens=text.replace(/\n/g,' ').split(/[,\s]+/).filter(t=>/^[A-Da-d]$/.test(t));
+  if(tokens.length>0){tokens.forEach((t,i)=>{map[i+1]=t.toUpperCase();});return map;}
+  // Compact string
+  const strip=text.replace(/\s/g,'');
+  if(/^[A-Da-d]+$/.test(strip)){strip.split('').forEach((c,i)=>{map[i+1]=c.toUpperCase();});return map;}
+  return map;
+}
+function mergeAK(){
+  Object.keys(answerKeyMap).forEach(k=>{const i=parseInt(k)-1;if(questions[i])questions[i].ans=answerKeyMap[k];});
+}
+
+// ══════════════════════════════════════
+// CONFIG & INSTRUCTIONS
+// ══════════════════════════════════════
+function goConfig(){
+  const secs=[...new Set(questions.map(q=>q.sec))];
+  $('cfg-qc').textContent=questions.length;
+  $('cfg-sc').textContent=secs.length;
+  show('config');
+}
+function goInstructions(){
+  cfg={
+    title:$('cfg-title').value||'Practice Test',
+    name:$('cfg-name').value||'Candidate',
+    dur:parseInt($('cfg-dur').value)||0,
+    marks:parseFloat($('cfg-marks').value)||1,
+    neg:parseFloat($('cfg-neg').value)||0,
+    shuf:$('cfg-shuf').value==='yes'
+  };
+  if(cfg.shuf){for(let i=questions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[questions[i],questions[j]]=[questions[j],questions[i]];}}
+  $('inst-tname').textContent=cfg.title;
+  $('inst-meta').textContent=`${questions.length} questions · ${cfg.dur?cfg.dur+' min':'No limit'} · ${cfg.marks} mark/question${cfg.neg?' · −'+cfg.neg+' negative':''}`;
+  $('inst-details').innerHTML=[
+    `Total questions: <strong>${questions.length}</strong>`,
+    `Duration: <strong>${cfg.dur?cfg.dur+' minutes':'Unlimited'}</strong>`,
+    `Correct answer: <strong>+${cfg.marks} mark</strong>`,
+    `Wrong answer: <strong>${cfg.neg?'−'+cfg.neg+' mark':'No penalty'}</strong>`,
+    `Maximum score: <strong>${(questions.length*cfg.marks).toFixed(1)}</strong>`,
+    `Answer key: <strong>Upload after test for auto-scoring</strong>`
+  ].map(t=>`<li>${t}</li>`).join('');
+  show('instructions');
+}
+
+// ══════════════════════════════════════
+// TEST ENGINE
+// ══════════════════════════════════════
+function startTest(){
+  qState=questions.map(()=>({status:S.NV,ans:null,marked:false}));
+  curQ=0;startTime=Date.now();violations=0;
+  $('tb-title').textContent=cfg.title;
+  $('sb-nm').textContent=cfg.name||'Candidate';
+  $('sb-sub').textContent=cfg.title;
+  $('sb-av').textContent=(cfg.name||'C')[0].toUpperCase();
+  $('mc-pos').textContent='+'+cfg.marks;
+  $('mc-neg').textContent='−'+cfg.neg;
+  $('mc-neg').style.display=cfg.neg?'':'none';
+  buildSectionTabs();buildPalette();startTimer();
+  show('test');renderQ();
+  // Fullscreen
+  document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});
+  document.addEventListener('visibilitychange',tabHandler);
+  document.addEventListener('fullscreenchange',fsHandler);
+}
+
+function buildSectionTabs(){
+  const bar=$('sec-tabs');bar.innerHTML='';
+  const secs=[...new Set(questions.map(q=>q.sec))];
+  if(secs.length<=1){bar.style.display='none';return;}
+  bar.style.display='flex';
+  secs.forEach(sec=>{
+    const btn=document.createElement('button');
+    btn.className='sec-tab';btn.textContent=sec;
+    btn.addEventListener('click',()=>{
+      const idx=questions.findIndex(q=>q.sec===sec);
+      if(idx>=0){curQ=idx;renderQ();}
+    });
+    bar.appendChild(btn);
+  });
+  updateSectionTab();
+}
+function updateSectionTab(){
+  const sec=questions[curQ]?.sec;
+  document.querySelectorAll('.sec-tab').forEach(t=>{t.classList.toggle('active',t.textContent===sec);});
+}
+
+function startTimer(){
+  clearInterval(timerInt);
+  if(!cfg.dur){$('tv').textContent='∞';return;}
+  timerInt=setInterval(()=>{
+    const rem=Math.max(0,cfg.dur*60-Math.floor((Date.now()-startTime)/1000));
+    const h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60),s=rem%60;
+    $('tv').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    $('tw').classList.toggle('warn',rem<=300);
+    if(rem===0){clearInterval(timerInt);ov('timeup',true);}
+  },1000);
+}
+
+function renderQ(){
+  const q=questions[curQ],s=qState[curQ];
+  if(s.status===S.NV)s.status=S.NA;
+  updatePalette();updateSectionTab();
+  $('q-num-lbl').textContent=`Question ${curQ+1} of ${questions.length}`;
+  $('q-text').textContent=q.q;
+  const cont=$('opts');cont.innerHTML='';
+  q.opts.forEach(opt=>{
+    const btn=document.createElement('button');
+    btn.className='opt'+(s.ans===opt.k?' sel':'');
+    btn.innerHTML=`<div class="opt-radio"></div><span class="opt-key">${opt.k}.</span><span>${esc(opt.t)}</span>`;
+    btn.addEventListener('click',()=>selectOpt(opt.k));
+    cont.appendChild(btn);
+  });
+  // Prev button
+  $('btn-prev').style.opacity=curQ===0?'0.4':'1';
+  $('btn-prev').disabled=curQ===0;
+  $('btn-snxt').textContent=curQ===questions.length-1?'Save & Submit ✓':'Save & Next →';
+  // Mark button
+  const mb=$('btn-mrk');
+  mb.textContent=s.marked?'🚩 Unmark':'🚩 Mark for Review';
+  mb.style.background=s.marked?'var(--purple)':'';
+  mb.style.color=s.marked?'#fff':'';
+  // Sidebar counts
+  const ans=qState.filter(x=>x.ans).length;
+  $('sb-ans-c').textContent=ans;
+  $('sb-na-c').textContent=questions.length-ans;
+}
+
+function selectOpt(k){
+  const s=qState[curQ];
+  s.ans=s.ans===k?null:k;
+  s.status=s.ans?(s.marked?S.AMRK:S.ANS):(s.marked?S.MRK:S.NA);
+  renderQ();
+}
+function toggleMark(){
+  const s=qState[curQ];s.marked=!s.marked;
+  s.status=s.ans?(s.marked?S.AMRK:S.ANS):(s.marked?S.MRK:S.NA);
+  renderQ();updatePalette();
+}
+function clearResp(){
+  const s=qState[curQ];s.ans=null;s.status=s.marked?S.MRK:S.NA;
+  renderQ();updatePalette();
+}
+function saveNext(){if(curQ<questions.length-1){curQ++;renderQ();}else openSubmitModal();}
+function prevQ(){if(curQ>0){curQ--;renderQ();}}
+function goQ(i){curQ=i;renderQ();}
+
+function buildPalette(){
+  const p=$('palette');p.innerHTML='';
+  questions.forEach((_,i)=>{
+    const b=document.createElement('button');
+    b.className='pal-btn s-nv';b.textContent=i+1;
+    b.addEventListener('click',()=>goQ(i));
+    p.appendChild(b);
+  });
+}
+function updatePalette(){
+  const btns=document.querySelectorAll('.pal-btn');
+  qState.forEach((s,i)=>{if(btns[i]){btns[i].className=`pal-btn s-${s.status}${i===curQ?' cur':''}`;} });
+}
+
+function openSubmitModal(){
+  const a=qState.filter(s=>s.ans).length;
+  const na=qState.filter(s=>!s.ans&&!s.marked).length;
+  const mk=qState.filter(s=>s.marked).length;
+  $('ms-a').textContent=a;$('ms-na').textContent=na;$('ms-m').textContent=mk;
+  ov('submit',true);
+}
+function submitTest(){
+  ov('submit',false);ov('timeup',false);
+  clearInterval(timerInt);
+  document.removeEventListener('visibilitychange',tabHandler);
+  document.removeEventListener('fullscreenchange',fsHandler);
+  if(document.exitFullscreen)document.exitFullscreen().catch(()=>{});
+  showResult(Math.floor((Date.now()-startTime)/1000));
+}
+
+// Tab / fullscreen guards
+function tabHandler(){
+  if(document.hidden){violations++;$('warn-msg').textContent=`Warning ${violations}: Tab switch detected. Stay in the exam window.`;ov('warn',true);}
+}
+function fsHandler(){
+  const full=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  if(!full&&$('screen-test').classList.contains('active')){
+    violations++;$('warn-msg').textContent=`Warning ${violations}: Full-screen exited. Click return to re-enter.`;ov('warn',true);
+  }
+}
+
+// ══════════════════════════════════════
+// RESULT SCREEN
+// ══════════════════════════════════════
+function showResult(elapsed){
+  const tot=questions.length;
+  let answered=0,skipped=0;
+  qState.forEach(s=>{s.ans?answered++:skipped++;});
+
+  $('rs-c').textContent='—';$('rs-w').textContent='—';
+  $('rs-sk').textContent=skipped;$('rs-score').textContent='—';
+  $('r-pct').textContent='—';
+
+  const m=String(Math.floor(elapsed/60)).padStart(2,'0'),s=String(elapsed%60).padStart(2,'0');
+  $('rs-t').textContent=`${m}:${s}`;
+  $('r-title').textContent='Test Submitted ✓';
+  $('r-sub').textContent=`${cfg.title} · ${cfg.name||'Candidate'} · ${answered} of ${tot} answered`;
+
+  // Reset key UI
+  answerKeyMap={};setAKStatus(false,'No key loaded');
+  $('ak-paste').value='';$('ak-fi').value='';
+  $('score-breakdown').classList.remove('show');
+  $('rev-section').style.display='none';
+
+  show('result');
+}
+
+function applyAnswerKey(){
+  mergeAK();
+  const tot=questions.length;
+  let correct=0,wrong=0,skipped=0;
+  questions.forEach((q,i)=>{
+    const a=qState[i].ans;
+    if(!a){skipped++;}
+    else if(q.ans){a===q.ans?correct++:wrong++;}
+  });
+  const score=correct*cfg.marks - wrong*cfg.neg;
+  const maxScore=tot*cfg.marks;
+  const pct=Math.max(0,Math.round(score/maxScore*100));
+
+  $('rs-c').textContent=correct;$('rs-w').textContent=wrong;
+  $('rs-sk').textContent=skipped;
+  $('rs-score').textContent=score.toFixed(1);
+  $('r-pct').textContent=pct+'%';
+  const circ=345.4;
+  setTimeout(()=>{$('r-fill').style.strokeDashoffset=((100-pct)/100)*circ;},100);
+
+  const titles=[[90,'🏆 Outstanding!'],[75,'🎯 Excellent!'],[60,'👍 Good Job!'],[40,'📚 Keep Practising!'],[0,'💪 Don\'t Give Up!']];
+  $('r-title').textContent=(titles.find(([t])=>pct>=t)||titles[4])[1];
+
+  $('bd-score').textContent=score.toFixed(1);
+  $('bd-max').textContent=maxScore.toFixed(1);
+  $('bd-pct').textContent=pct+'%';
+  $('score-breakdown').classList.add('show');
+
+  // Review list
+  $('rev-section').style.display='block';
+  const list=$('rev-list');list.innerHTML='';
+  questions.forEach((q,i)=>{
+    const a=qState[i].ans;
+    const isSkip=!a,isC=a&&q.ans&&a===q.ans,isW=a&&q.ans&&a!==q.ans;
+    const div=document.createElement('div');
+    div.className='rev-item '+(isC?'ri-c':isW?'ri-w':'');
+    const icon=isSkip?'⬜':isC?'✅':q.ans?'❌':'⬜';
+    const detail=isSkip?`<span>Skipped</span>`:isC?`<span class="ra-c">Your answer: ${a} ✓</span>`:q.ans?`<span class="ra-w">Yours: ${a||'—'}</span><span class="ra-c">Correct: ${q.ans}</span>`:`<span>Answered: ${a} (no key for this Q)</span>`;
+    div.innerHTML=`<div class="rev-icon">${icon}</div><div><div class="rev-q">Q${i+1}. ${esc(q.q)}</div><div class="rev-ans">${detail}</div></div>`;
+    list.appendChild(div);
+  });
+}
+
+function setAKStatus(ok,msg){
+  const el=$('ak-stat'),lbl=$('ak-stat-lbl');
+  el.classList.toggle('ok',ok);lbl.textContent=msg;
+}
+
+// ══════════════════════════════════════
+// PDF / PRINT
+// ══════════════════════════════════════
+function generatePDF(){
+  const name=cfg.name||'Candidate';
+  const title=cfg.title||'Practice Test';
+  const hasKey=Object.keys(answerKeyMap).length>0||questions.some(q=>q.ans);
+  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>${title} — Response Sheet</title>
+<style>
+body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px;max-width:760px;margin:0 auto;}
+h1{font-size:18px;margin-bottom:4px;}
+.meta{color:#666;font-size:11px;margin-bottom:24px;border-bottom:1px solid #ddd;padding-bottom:12px;}
+.q-block{margin-bottom:20px;page-break-inside:avoid;}
+.q-num{font-weight:700;color:#1a56db;font-size:11px;margin-bottom:4px;}
+.q-text{font-size:13px;font-weight:600;margin-bottom:8px;line-height:1.5;}
+.opt-row{display:flex;align-items:flex-start;gap:8px;padding:4px 6px;border-radius:4px;margin-bottom:3px;font-size:12px;}
+.opt-row.my-ans{background:#dbeafe;border-left:3px solid #1a56db;}
+.opt-row.correct{background:#def7ec;border-left:3px solid #057a55;}
+.opt-row.wrong{background:#fde8e8;border-left:3px solid #e02424;}
+.ok{font-size:10px;font-weight:700;}
+.status-row{font-size:10px;margin-top:4px;color:#666;}
+.page-hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1a56db;padding-bottom:8px;margin-bottom:8px;}
+.score-box{background:#f3f4f6;padding:12px 20px;border-radius:6px;display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;}
+.sb-item{display:flex;flex-direction:column;}
+.sb-v{font-size:18px;font-weight:700;}
+.sb-l{font-size:10px;color:#666;}
+@media print{body{padding:16px;}h1{font-size:15px;}}
+</style></head><body>
+<div class="page-hdr"><h1>${title}</h1><div style="font-size:11px;color:#666;">ExamDesk Response Sheet</div></div>
+<div class="meta">Candidate: <strong>${name}</strong> &nbsp;|&nbsp; Date: <strong>${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</strong> &nbsp;|&nbsp; Questions: <strong>${questions.length}</strong></div>`;
+
+  if(hasKey){
+    let c=0,w=0,sk=0;
+    questions.forEach((q,i)=>{const a=qState[i].ans;if(!a)sk++;else if(q.ans){a===q.ans?c++:w++;}});
+    const score=(c*cfg.marks-w*cfg.neg).toFixed(1);
+    const max=(questions.length*cfg.marks).toFixed(1);
+    const pct=Math.max(0,Math.round(parseFloat(score)/parseFloat(max)*100));
+    html+=`<div class="score-box">
+      <div class="sb-item"><span class="sb-v" style="color:#1a56db;">${score}/${max}</span><span class="sb-l">Score</span></div>
+      <div class="sb-item"><span class="sb-v" style="color:#057a55;">${c}</span><span class="sb-l">Correct</span></div>
+      <div class="sb-item"><span class="sb-v" style="color:#e02424;">${w}</span><span class="sb-l">Wrong</span></div>
+      <div class="sb-item"><span class="sb-v" style="color:#6b7280;">${sk}</span><span class="sb-l">Skipped</span></div>
+      <div class="sb-item"><span class="sb-v">${pct}%</span><span class="sb-l">Percentage</span></div>
+    </div>`;
+  }
+
+  questions.forEach((q,i)=>{
+    const myAns=qState[i].ans;
+    const correct=q.ans;
+    const isSkip=!myAns,isC=myAns&&correct&&myAns===correct,isW=myAns&&correct&&myAns!==correct;
+    const statusIcon=isSkip?'⬜ Skipped':isC?'✅ Correct':isW?'❌ Wrong':'⬜ Attempted (no key)';
+    html+=`<div class="q-block"><div class="q-num">Q${i+1} &nbsp; ${q.sec!=='General'?'['+q.sec+']':''}</div><div class="q-text">${esc(q.q)}</div>`;
+    q.opts.forEach(opt=>{
+      let cls='opt-row';
+      if(opt.k===myAns&&opt.k===correct)cls+=' correct';
+      else if(opt.k===myAns&&opt.k!==correct&&myAns)cls+=' wrong';
+      else if(opt.k===correct&&hasKey)cls+=' correct';
+      else if(opt.k===myAns)cls+=' my-ans';
+      const marker=opt.k===myAns&&opt.k===correct?'✓ Your Answer · Correct':opt.k===myAns&&isW?'✗ Your Answer':opt.k===correct&&hasKey?'← Correct Answer':opt.k===myAns?'← Your Answer':'';
+      html+=`<div class="${cls}"><span style="font-weight:700;min-width:18px;">${opt.k}.</span><span>${esc(opt.t)}</span>${marker?`<span class="ok" style="margin-left:auto;">${marker}</span>`:''}`;
+      html+=`</div>`;
+    });
+    html+=`<div class="status-row">${statusIcon}</div></div>`;
+  });
+  html+=`</body></html>`;
+  const w=window.open('','_blank');w.document.write(html);w.document.close();
+  setTimeout(()=>w.print(),600);
+}
+
+// ══════════════════════════════════════
+// FILE HANDLING
+// ══════════════════════════════════════
+async function handleQFile(f){
+  show('processing');$('ocr-section').style.display='none';$('ocr-fill').style.width='0%';
+  try{
+    const text=await extractText(f);
+    if(!text||text.trim().length<10){show('upload');showAlert('Could not extract text. Try pasting the content manually.');return;}
+    const parsed=parseMCQs(text);
+    if(parsed.length===0){show('upload');showAlert('No MCQs found. Ensure questions are numbered (1. 2. 3.) with options A) B) C) D).');return;}
+    questions=parsed;goConfig();
+  }catch(e){show('upload');showAlert('Error: '+e.message);}
+}
+async function handleAKFile(f){
+  try{
+    let text;
+    const ext=f.name.split('.').pop().toLowerCase();
+    if(ext==='txt')text=await readTxt(f);
+    else if(ext==='docx'||ext==='doc')text=await readDocx(f);
+    else if(ext==='pdf'){text=await readPdf(f);if(!text||text.replace(/\s/g,'').length<5){text=await runOCR(f,true);}}
+    else text=await runOCR(f,false);
+    if(!text){showAlert('Could not read answer key file.');return;}
+    const parsed=parseAK(text);
+    const count=Object.keys(parsed).length;
+    if(count===0){showAlert('No answers detected. Format: "1. A\\n2. B" or "A, B, C, D"');return;}
+    answerKeyMap=parsed;setAKStatus(true,`${f.name} · ${count} answers`);
+    applyAnswerKey();
+  }catch(e){showAlert('Error reading key: '+e.message);}
+}
+
+// ══════════════════════════════════════
+// EVENT WIRING
+// ══════════════════════════════════════
+
+// Upload — question paper
+// Route PDF files through the server pipeline when online, otherwise fall back to in-browser.
+const dz=$('dz'),fi=$('fi');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('over');
+  const f=e.dataTransfer.files[0];
+  if(f){
+    if(f.name.toLowerCase().endsWith('.pdf')&&serverOnline){
+      startPipeline(f);
+    } else {
+      handleQFile(f);
+    }
+  }
+});
+fi.addEventListener('change',()=>{
+  const f=fi.files[0];
+  if(f){
+    if(f.name.toLowerCase().endsWith('.pdf')&&serverOnline){
+      startPipeline(f);
+    } else {
+      handleQFile(f);
+    }
+  }
+});
+
+// Pipeline cancel button
+$('pipe-cancel').addEventListener('click',()=>{
+  pipelineJobId=null;
+  clearInterval(pipelinePollInterval);
+  show('upload');
+});
+
+$('btn-cb').addEventListener('click',async()=>{
+  try{const t=await navigator.clipboard.readText();if(t&&t.trim())$('paste-in').value=t;else showAlert('Clipboard empty.');}
+  catch(e){showAlert('Clipboard denied. Please paste manually.');}
+});
+$('btn-pp').addEventListener('click',async()=>{
+  const text=$('paste-in').value.trim();
+  if(!text){showAlert('Please enter some text first.');return;}
+  show('processing');pm('Parsing questions...');
+  const parsed=parseMCQs(text);
+  if(parsed.length===0){show('upload');showAlert('No MCQs found. Check format.');return;}
+  questions=parsed;goConfig();
+});
+
+// Config
+$('btn-to-inst').addEventListener('click',goInstructions);
+$('btn-back-cfg').addEventListener('click',()=>show('upload'));
+
+// Instructions
+$('agree-chk').addEventListener('change',function(){$('btn-start').disabled=!this.checked;});
+$('btn-start').addEventListener('click',startTest);
+
+// Test actions
+$('btn-mrk').addEventListener('click',toggleMark);
+$('btn-clr').addEventListener('click',clearResp);
+$('btn-snxt').addEventListener('click',saveNext);
+$('btn-prev').addEventListener('click',prevQ);
+$('btn-submit').addEventListener('click',openSubmitModal);
+$('btn-submit2').addEventListener('click',openSubmitModal);
+
+// Submit modal
+$('btn-cancel-sub').addEventListener('click',()=>ov('submit',false));
+$('btn-confirm-sub').addEventListener('click',submitTest);
+$('btn-timeup-ok').addEventListener('click',submitTest);
+
+// Warn modal — re-enter fullscreen
+$('btn-dismiss-warn').addEventListener('click',()=>{
+  ov('warn',false);
+  document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});
+});
+
+// Result — answer key
+const akDz=$('ak-dz'),akFi=$('ak-fi');
+akDz.addEventListener('dragover',e=>{e.preventDefault();akDz.style.borderColor='var(--blue)';});
+akDz.addEventListener('dragleave',()=>akDz.style.borderColor='');
+akDz.addEventListener('drop',e=>{e.preventDefault();akDz.style.borderColor='';if(e.dataTransfer.files[0])handleAKFile(e.dataTransfer.files[0]);});
+akFi.addEventListener('change',()=>{if(akFi.files[0])handleAKFile(akFi.files[0]);});
+
+$('btn-ak-cb').addEventListener('click',async()=>{
+  try{const t=await navigator.clipboard.readText();if(t&&t.trim())$('ak-paste').value=t;else showAlert('Clipboard empty.');}
+  catch(e){showAlert('Clipboard denied.');}
+});
+$('btn-ak-load').addEventListener('click',()=>{
+  const text=$('ak-paste').value.trim();
+  if(!text){showAlert('Enter answer key text first.');return;}
+  const parsed=parseAK(text);
+  const count=Object.keys(parsed).length;
+  if(count===0){showAlert('No answers found. Use format: 1. A\\n2. B or A, B, C');return;}
+  answerKeyMap=parsed;setAKStatus(true,`Pasted key · ${count} answers`);
+  applyAnswerKey();
+});
+
+// PDF
+$('btn-pdf').addEventListener('click',generatePDF);
+
+// New test / retake
+function resetAll(){
+  questions=[];qState=[];answerKeyMap={};
+  $('paste-in').value='';fi.value='';$('agree-chk').checked=false;$('btn-start').disabled=true;
+  show('upload');
+}
+$('btn-new').addEventListener('click',resetAll);
+$('btn-new2').addEventListener('click',resetAll);
+$('btn-retake').addEventListener('click',startTest);
+</script>
+</body>
+</html>

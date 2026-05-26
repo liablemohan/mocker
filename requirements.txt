@@ -1,0 +1,6 @@
+pdf2image
+tqdm
+PyPDF2
+flask
+flask-cors
+google-genai

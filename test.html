@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ExamDesk — Live Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ─── Reset & Tokens ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: 'Inter', sans-serif; font-size: 14px; background: #f1f3f6; color: #1a1a2e; }
+button { font-family: inherit; cursor: pointer; border: none; }
+
+:root {
+  --navy:   #1b2a4a;
+  --navy-d: #111d35;
+  --blue:   #3b82f6;
+  --blue-d: #1d4ed8;
+  --blue-l: #eff6ff;
+  --green:  #16a34a;
+  --green-l:#dcfce7;
+  --red:    #dc2626;
+  --red-l:  #fee2e2;
+  --purple: #7c3aed;
+  --purple-l:#ede9fe;
+  --orange: #ea580c;
+  --gray:   #6b7280;
+  --gray-l: #9ca3af;
+  --gray-bg:#64748b;
+
+  /* palette colours — Testbook exact */
+  --c-nv:   #94a3b8;   /* not visited  — slate */
+  --c-na:   #ef4444;   /* not answered — red   */
+  --c-ans:  #22c55e;   /* answered     — green */
+  --c-mrk:  #a855f7;   /* marked       — purple*/
+  --c-amrk: #a855f7;   /* ans+marked   — purple*/
+}
+
+/* ─── Screens ───────────────────────────────────────────────── */
+.screen { display: none; height: 100dvh; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* ══════════════════════════════════════════════════════════════
+   SPLASH
+══════════════════════════════════════════════════════════════ */
+#sc-splash {
+  background: var(--navy-d);
+  align-items: center; justify-content: center;
+}
+.splash-inner { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+.s-logo { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -.03em; }
+.s-logo em { color: #60a5fa; font-style: normal; }
+.s-spin {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.12); border-top-color: #60a5fa;
+  animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.s-msg { font-size: 13px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+.s-err {
+  display: none; background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3);
+  color: #fca5a5; border-radius: 10px; padding: 16px 20px; max-width: 400px;
+  font-size: 13px; line-height: 1.7; text-align: center;
+}
+.s-err.show { display: block; }
+
+/* ══════════════════════════════════════════════════════════════
+   INSTRUCTIONS
+══════════════════════════════════════════════════════════════ */
+#sc-inst { background: #f8fafc; overflow: hidden; }
+.inst-bar {
+  background: var(--navy); height: 56px; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 28px; flex-shrink: 0;
+}
+.logo { font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -.02em; }
+.logo em { color: #60a5fa; font-style: normal; }
+.inst-scroll { flex: 1; overflow-y: auto; }
+.inst-scroll::-webkit-scrollbar { width: 4px; }
+.inst-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+.inst-body { max-width: 800px; margin: 0 auto; padding: 36px 28px 120px; }
+.inst-name { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.inst-sub { color: var(--gray); font-size: 13px; margin-bottom: 28px; }
+
+.info-band {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px;
+}
+@media (max-width:600px) { .info-band { grid-template-columns: 1fr 1fr; } }
+.info-card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 16px 18px; display: flex; align-items: center; gap: 14px;
+}
+.ic-icon { font-size: 24px; }
+.ic-val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--navy); }
+.ic-lbl { font-size: 11px; color: var(--gray); margin-top: 1px; font-weight: 500; }
+
+.inst-section { margin-bottom: 22px; }
+.inst-section h3 {
+  font-size: 12px; font-weight: 700; color: var(--gray); letter-spacing: .07em;
+  text-transform: uppercase; margin-bottom: 10px;
+}
+.ilist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ilist li {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 10px 14px; font-size: 13px; line-height: 1.5; color: #374151;
+}
+.ilist li::before { content: '→'; color: var(--blue); font-weight: 700; flex-shrink: 0; }
+
+.legend-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+.leg-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 8px 14px; font-size: 12px; font-weight: 500; color: #374151;
+}
+.leg-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+.inst-foot {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  background: #fff; border-top: 1px solid #e2e8f0;
+  padding: 14px 28px; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px;
+}
+.agree { display: flex; align-items: center; gap: 9px; font-size: 13px; cursor: pointer; user-select: none; }
+.agree input { width: 17px; height: 17px; accent-color: var(--blue); }
+
+/* ══════════════════════════════════════════════════════════════
+   TEST SCREEN  — Testbook Layout
+   [ TopBar ]
+   [ Section Tabs ]
+   [ Question Panel | Right Sidebar ]
+══════════════════════════════════════════════════════════════ */
+#sc-test { background: #f1f3f6; overflow: hidden; }
+
+/* ── Top Bar ── */
+.tb {
+  background: var(--navy); height: 56px; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 20px; flex-shrink: 0; z-index: 50;
+  gap: 12px;
+}
+.tb-left  { display: flex; align-items: center; gap: 16px; }
+.tb-title { color: #94a3b8; font-size: 12px; font-weight: 500; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-right { display: flex; align-items: center; gap: 12px; }
+
+/* Timer */
+.timer {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 8px; padding: 6px 14px;
+}
+.timer-icon { font-size: 15px; }
+.timer-val  {
+  font-family: 'JetBrains Mono', monospace; font-size: 20px;
+  font-weight: 600; color: #fff; letter-spacing: .04em; min-width: 88px;
+}
+.timer.warn { border-color: rgba(251,191,36,.4); background: rgba(251,191,36,.1); }
+.timer.warn .timer-val { color: #fbbf24; }
+.timer.crit { background: rgba(239,68,68,.2); border-color: rgba(239,68,68,.4); animation: hb .7s ease infinite alternate; }
+.timer.crit .timer-val { color: #fca5a5; }
+@keyframes hb { from { background: rgba(239,68,68,.15); } to { background: rgba(239,68,68,.35); } }
+
+/* ── Section Tabs ── */
+.sec-tabs {
+  background: #fff; border-bottom: 1px solid #e2e8f0;
+  display: flex; overflow-x: auto; flex-shrink: 0; padding: 0 4px;
+}
+.sec-tabs::-webkit-scrollbar { height: 2px; }
+.sec-tabs::-webkit-scrollbar-thumb { background: #cbd5e1; }
+.sec-tab {
+  padding: 12px 20px; font-size: 13px; font-weight: 500; color: #64748b;
+  border-bottom: 3px solid transparent; background: none; white-space: nowrap;
+  border-top: none; border-left: none; border-right: none;
+  cursor: pointer; transition: color .15s;
+}
+.sec-tab:hover { color: var(--blue); }
+.sec-tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 700; }
+
+/* ── Body: Q panel + sidebar ── */
+.test-body { flex: 1; display: flex; overflow: hidden; }
+
+/* ── Question Panel ── */
+.qp { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-width: 0; }
+.qp::-webkit-scrollbar { width: 4px; }
+.qp::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+.qp-inner { padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+/* Question card */
+.q-card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.q-card-header {
+  padding: 12px 18px; border-bottom: 1px solid #f1f5f9;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+}
+.lang-switch {
+  display: inline-flex; background: #f1f5f9; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 2px; gap: 2px;
+}
+.lang-btn {
+  padding: 4px 12px; font-size: 11px; font-weight: 700; border-radius: 6px; background: transparent; color: #64748b; border: none; cursor: pointer; transition: all 0.15s ease;
+}
+.lang-btn.active {
+  background: #fff; color: var(--blue); box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.q-num { font-size: 14px; font-weight: 700; color: #1e293b; }
+.q-marks { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+.m-chip { padding: 3px 10px; border-radius: 6px; }
+.m-pos { background: var(--green-l); color: var(--green); }
+.m-neg { background: var(--red-l); color: var(--red); }
+.q-card-body { padding: 20px 18px; flex: 1; }
+.q-text {
+  font-size: 15px; font-weight: 500; line-height: 1.8; color: #1e293b;
+  margin-bottom: 22px; white-space: pre-wrap; word-break: break-word;
+}
+.opts { display: flex; flex-direction: column; gap: 9px; }
+.opt {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #fff; border: 1.5px solid #e2e8f0; border-radius: 9px;
+  padding: 13px 16px; cursor: pointer; transition: border-color .14s, background .14s;
+  width: 100%; text-align: left; font-size: 14px; line-height: 1.5; color: #374151;
+}
+.opt:hover { border-color: var(--blue); background: var(--blue-l); }
+.opt.sel  { border-color: var(--blue); background: var(--blue-l); }
+.opt.ok   { border-color: #4ade80; background: var(--green-l); }
+.opt.bad  { border-color: #f87171; background: var(--red-l); }
+
+/* Radio circle */
+.opt-r {
+  width: 20px; height: 20px; border-radius: 50%; border: 2px solid #cbd5e1;
+  flex-shrink: 0; margin-top: 1px; transition: border-color .14s;
+  display: flex; align-items: center; justify-content: center;
+}
+.opt.sel .opt-r { border-color: var(--blue); }
+.opt.sel .opt-r::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); }
+.opt.ok  .opt-r { border-color: var(--green); background: var(--green); }
+.opt.ok  .opt-r::after { content: '✓'; color: #fff; font-size: 11px; font-weight: 800; }
+.opt.bad .opt-r { border-color: var(--red); background: var(--red); }
+.opt.bad .opt-r::after { content: '✗'; color: #fff; font-size: 11px; font-weight: 800; }
+.opt-k { font-weight: 700; color: #94a3b8; font-size: 13px; min-width: 20px; }
+.opt.sel .opt-k { color: var(--blue); }
+.opt.ok  .opt-k { color: var(--green); }
+.opt.bad .opt-k { color: var(--red); }
+
+/* Action bar */
+.q-actions {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 12px 16px; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 10px; flex-shrink: 0;
+}
+.qa-l { display: flex; gap: 8px; flex-wrap: wrap; }
+.qa-r { display: flex; gap: 8px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;
+  font-weight: 600; padding: 9px 18px; font-size: 13px;
+  transition: all .14s; cursor: pointer; white-space: nowrap; border: none;
+}
+.btn:disabled { opacity: .4; pointer-events: none; }
+.btn-blue  { background: var(--blue); color: #fff; }
+.btn-blue:hover  { background: var(--blue-d); }
+.btn-red   { background: var(--red); color: #fff; }
+.btn-red:hover   { background: #b91c1c; }
+.btn-purple{ background: var(--purple); color: #fff; }
+.btn-purple:hover{ background: #6d28d9; }
+.btn-ghost { background: transparent; color: #374151; border: 1.5px solid #d1d5db; }
+.btn-ghost:hover { border-color: var(--blue); color: var(--blue); }
+.btn-clr   { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; }
+.btn-clr:hover   { background: #e2e8f0; }
+
+/* ── RIGHT SIDEBAR ── */
+.sidebar {
+  width: 288px; flex-shrink: 0; background: #fff;
+  border-left: 1px solid #e2e8f0; display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* Candidate strip */
+.sb-cand {
+  background: var(--navy); padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.sb-av {
+  width: 44px; height: 44px; border-radius: 50%; background: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 18px; font-weight: 800; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,.25);
+}
+.sb-cname { font-size: 14px; font-weight: 700; color: #fff; }
+.sb-crole { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* Stat boxes */
+.sb-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: #e2e8f0; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+}
+.sb-stat {
+  background: #fff; padding: 12px; text-align: center; cursor: default;
+}
+.sb-stat-n { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; }
+.sb-stat-l { font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 2px; letter-spacing: .04em; }
+.ss-ans .sb-stat-n { color: var(--green); }
+.ss-na  .sb-stat-n { color: var(--red); }
+.ss-mrk .sb-stat-n { color: var(--purple); }
+.ss-nv  .sb-stat-n { color: var(--gray); }
+
+/* Palette scroll area */
+.sb-palette-wrap { flex: 1; overflow-y: auto; padding: 14px 12px 4px; }
+.sb-palette-wrap::-webkit-scrollbar { width: 3px; }
+.sb-palette-wrap::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
+.sb-pal-title { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 10px; }
+.palette {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px;
+}
+.pal-btn {
+  aspect-ratio: 1; border: none; border-radius: 7px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  color: #fff; cursor: pointer; transition: transform .1s, box-shadow .1s;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.pal-btn:hover { transform: scale(1.15); box-shadow: 0 4px 12px rgba(0,0,0,.18); }
+.pal-btn.cur { outline: 2.5px solid var(--navy); outline-offset: 2px; }
+.p-nv  { background: var(--c-nv); }
+.p-na  { background: var(--c-na); }
+.p-ans { background: var(--c-ans); }
+.p-mrk { background: var(--c-mrk); }
+.p-amrk { background: var(--c-amrk); }
+.p-amrk::after {
+  content: '✓'; position: absolute; top: -4px; right: -4px;
+  width: 13px; height: 13px; background: var(--green); border-radius: 50%;
+  font-size: 7px; display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid #fff;
+}
+
+/* Legend */
+.sb-legend { padding: 10px 14px 4px; border-top: 1px solid #f1f5f9; flex-shrink: 0; }
+.sb-legend-title { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px; }
+.leg-rows { display: flex; flex-direction: column; gap: 5px; }
+.leg-row { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #374151; }
+.leg-sq { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; }
+
+/* Submit area */
+.sb-submit { padding: 12px 14px; border-top: 1px solid #e2e8f0; flex-shrink: 0; }
+
+/* ══════════════════════════════════════════════════════════════
+   SUBMIT MODAL
+══════════════════════════════════════════════════════════════ */
+.overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.65);
+  display: none; align-items: center; justify-content: center;
+  z-index: 999; padding: 20px; backdrop-filter: blur(2px);
+}
+.overlay.open { display: flex; }
+.modal {
+  background: #fff; border-radius: 16px; padding: 28px 28px 24px;
+  max-width: 460px; width: 100%;
+  box-shadow: 0 32px 80px rgba(0,0,0,.22);
+  animation: pop .22s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pop { from { opacity:0; transform: scale(.9) translateY(16px); } to { opacity:1; transform: none; } }
+.modal h3 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+.modal .msub { color: var(--gray); font-size: 13px; margin-bottom: 20px; }
+.modal-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 22px; }
+.mstat { background: #f8fafc; border-radius: 10px; padding: 14px; text-align: center; border: 1px solid #e2e8f0; }
+.mstat-n { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; }
+.mstat-l { font-size: 10px; color: var(--gray-l); margin-top: 3px; letter-spacing: .04em; }
+.ms-ans .mstat-n { color: var(--green); }
+.ms-na  .mstat-n { color: var(--red); }
+.ms-mrk .mstat-n { color: var(--purple); }
+.mfoot { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ══════════════════════════════════════════════════════════════
+   RESULT SCREEN
+══════════════════════════════════════════════════════════════ */
+#sc-result { background: #f1f3f6; overflow: hidden; }
+.res-bar {
+  background: var(--navy); height: 56px; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 24px; flex-shrink: 0;
+}
+.res-scroll { flex: 1; overflow-y: auto; }
+.res-scroll::-webkit-scrollbar { width: 4px; }
+.res-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+.res-body { max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; display: flex; flex-direction: column; gap: 18px; }
+
+/* Score hero */
+.res-hero {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+  padding: 28px; display: grid; grid-template-columns: auto 1fr; gap: 32px;
+  align-items: center;
+}
+@media (max-width:560px) { .res-hero { grid-template-columns: 1fr; } }
+
+/* SVG ring */
+.ring-wrap { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+.ring-wrap svg { transform: rotate(-90deg); }
+circle { fill: none; stroke-width: 14; }
+.r-bg   { stroke: #f1f5f9; }
+.r-fill { stroke: var(--blue); stroke-linecap: round; transition: stroke-dashoffset 1.4s cubic-bezier(.34,1.56,.64,1); }
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-pct { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: #1e293b; }
+.ring-lbl { font-size: 10px; color: var(--gray-l); letter-spacing: .06em; }
+
+.res-info h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.res-info .rsub { color: var(--gray); font-size: 13px; margin-bottom: 18px; }
+.res-stats { display: flex; gap: 22px; flex-wrap: wrap; }
+.rss { display: flex; flex-direction: column; }
+.rss .rv { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; }
+.rss .rl { font-size: 11px; color: var(--gray-l); margin-top: 2px; }
+
+/* Section breakdown */
+.sec-bd { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 22px; }
+.sec-bd h3 { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+.bd-row { display: flex; align-items: center; gap: 14px; margin-bottom: 13px; }
+.bd-row:last-child { margin-bottom: 0; }
+.bd-name { font-size: 12px; font-weight: 600; color: #374151; min-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bd-bar-wrap { flex: 1; background: #f1f5f9; border-radius: 99px; height: 7px; overflow: hidden; }
+.bd-bar { height: 100%; background: linear-gradient(90deg, var(--blue), #60a5fa); border-radius: 99px; transition: width 1.2s ease; }
+.bd-stat { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--gray); min-width: 48px; text-align: right; }
+
+/* Review */
+.review-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 22px; }
+.review-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+.ftabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.ftab {
+  padding: 5px 14px; border-radius: 99px; font-size: 12px; font-weight: 600;
+  border: 1.5px solid #e2e8f0; background: #f8fafc; color: var(--gray);
+  cursor: pointer; transition: all .14s;
+}
+.ftab.on { border-color: var(--blue); background: var(--blue-l); color: var(--blue); }
+.rev-list { display: flex; flex-direction: column; gap: 9px; }
+.ri {
+  border-left: 3px solid #e2e8f0; border-radius: 0 9px 9px 0;
+  background: #f8fafc; padding: 12px 14px; display: flex; gap: 12px;
+}
+.ri.ri-c { border-left-color: var(--green); background: var(--green-l); }
+.ri.ri-w { border-left-color: var(--red); background: var(--red-l); }
+.ri.ri-s { border-left-color: #94a3b8; background: #f8fafc; }
+.ri-icon { font-size: 16px; flex-shrink: 0; }
+.ri-q { font-size: 13px; font-weight: 500; margin-bottom: 4px; line-height: 1.45; color: #1e293b; }
+.ri-ans { font-size: 11px; font-family: 'JetBrains Mono', monospace; display: flex; gap: 14px; flex-wrap: wrap; }
+.a-u { color: var(--blue); } .a-c { color: var(--green); } .a-w { color: var(--red); }
+
+.res-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<!-- ═══ SPLASH ═══ -->
+<div class="screen active" id="sc-splash">
+  <div class="splash-inner">
+    <div class="s-logo">Exam<em>Desk</em></div>
+    <div class="s-spin"></div>
+    <div class="s-msg" id="s-msg">Fetching questions…</div>
+    <div class="s-err" id="s-err"></div>
+  </div>
+</div>
+
+<!-- ═══ INSTRUCTIONS ═══ -->
+<div class="screen" id="sc-inst">
+  <div class="inst-bar">
+    <div class="logo">Exam<em>Desk</em></div>
+    <span style="color:#94a3b8;font-size:12px;">CBT Practice Mode</span>
+  </div>
+  <div class="inst-scroll">
+    <div class="inst-body">
+      <div class="inst-name" id="inst-name">Loading…</div>
+      <div class="inst-sub" id="inst-sub"></div>
+      <div class="info-band" id="info-band"></div>
+      <div class="inst-section">
+        <h3>Navigation & Marking</h3>
+        <ul class="ilist">
+          <li>Click an option to select your answer. Click the same option again to deselect.</li>
+          <li>Use <strong>Save &amp; Next</strong> to confirm your answer and move forward.</li>
+          <li>Use <strong>Previous</strong> to navigate back — your answer is retained.</li>
+          <li>Click any numbered button in the <strong>Question Palette</strong> (right side) to jump directly.</li>
+          <li>Use <strong>Mark for Review</strong> to flag uncertain questions — they appear in purple.</li>
+          <li>Use <strong>Clear Response</strong> to remove a selected answer anytime.</li>
+        </ul>
+      </div>
+      <div class="inst-section">
+        <h3>Question Palette Legend</h3>
+        <div class="legend-wrap">
+          <div class="leg-chip"><div class="leg-dot" style="background:var(--c-nv);"></div>Not Visited</div>
+          <div class="leg-chip"><div class="leg-dot" style="background:var(--c-na);"></div>Not Answered</div>
+          <div class="leg-chip"><div class="leg-dot" style="background:var(--c-ans);"></div>Answered</div>
+          <div class="leg-chip"><div class="leg-dot" style="background:var(--c-mrk);"></div>Marked for Review</div>
+          <div class="leg-chip"><div class="leg-dot" style="background:var(--c-amrk);"></div>Answered &amp; Marked</div>
+        </div>
+      </div>
+      <div class="inst-section">
+        <h3>Important</h3>
+        <ul class="ilist">
+          <li>The timer starts the moment you click <strong>Start Test</strong>.</li>
+          <li><strong>Do not</strong> refresh or close the tab — your progress will be lost.</li>
+          <li>The test auto-submits when the timer reaches 00:00:00.</li>
+          <li>After submission you'll see a full answer review with section-wise breakdown.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="inst-foot">
+    <label class="agree"><input type="checkbox" id="agree-chk"/> I have read and understood all instructions</label>
+    <button class="btn btn-blue" id="btn-start" disabled style="padding:10px 28px;font-size:14px;">Start Test →</button>
+  </div>
+</div>
+
+<!-- ═══ TEST ═══ -->
+<div class="screen" id="sc-test">
+
+  <!-- Topbar -->
+  <div class="tb">
+    <div class="tb-left">
+      <div class="logo">Exam<em>Desk</em></div>
+      <div class="tb-title" id="tb-title"></div>
+    </div>
+    <div class="tb-right">
+      <div class="timer" id="timer">
+        <span class="timer-icon">⏱</span>
+        <div class="timer-val" id="timer-val">00:00:00</div>
+      </div>
+      <button class="btn btn-red" id="btn-sub-top">Submit Test</button>
+    </div>
+  </div>
+
+  <!-- Section tabs -->
+  <div class="sec-tabs" id="sec-tabs"></div>
+
+  <!-- Body -->
+  <div class="test-body">
+
+    <!-- Question panel -->
+    <div class="qp" id="qp">
+      <div class="qp-inner">
+
+        <!-- Q card -->
+        <div class="q-card">
+          <div class="q-card-header">
+            <span class="q-num" id="q-num">Q.1 of 140</span>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div class="lang-switch" id="lang-switch" style="display:none;">
+                <button class="lang-btn active" id="lang-btn-en" onclick="setLang('en')">English</button>
+                <button class="lang-btn" id="lang-btn-hi" onclick="setLang('hi')">हिंदी</button>
+              </div>
+              <div class="q-marks">
+                <span style="color:#64748b;font-size:12px;">Marks</span>
+                <span class="m-chip m-pos" id="m-pos">+4</span>
+                <span class="m-chip m-neg" id="m-neg" style="display:none;">-1</span>
+              </div>
+            </div>
+          </div>
+          <div class="q-card-body">
+            <div class="q-text" id="q-text">Loading…</div>
+            <div class="opts" id="opts"></div>
+          </div>
+        </div>
+
+        <!-- Action bar -->
+        <div class="q-actions">
+          <div class="qa-l">
+            <button class="btn btn-purple" id="btn-mrk">🚩 Mark for Review</button>
+            <button class="btn btn-clr" id="btn-clr">✕ Clear Response</button>
+          </div>
+          <div class="qa-r">
+            <button class="btn btn-ghost" id="btn-prev">← Previous</button>
+            <button class="btn btn-blue" id="btn-snxt">Save &amp; Next →</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="sidebar">
+      <!-- Candidate -->
+      <div class="sb-cand">
+        <div class="sb-av" id="sb-av">U</div>
+        <div>
+          <div class="sb-cname" id="sb-cname">Candidate</div>
+          <div class="sb-crole" id="sb-crole">Practice Test</div>
+        </div>
+      </div>
+
+      <!-- Stats 2×2 -->
+      <div class="sb-stats">
+        <div class="sb-stat ss-ans"><div class="sb-stat-n" id="st-ans">0</div><div class="sb-stat-l">ANSWERED</div></div>
+        <div class="sb-stat ss-na"><div class="sb-stat-n" id="st-na">0</div><div class="sb-stat-l">NOT ANSWERED</div></div>
+        <div class="sb-stat ss-mrk"><div class="sb-stat-n" id="st-mrk">0</div><div class="sb-stat-l">MARKED</div></div>
+        <div class="sb-stat ss-nv"><div class="sb-stat-n" id="st-nv">0</div><div class="sb-stat-l">NOT VISITED</div></div>
+      </div>
+
+      <!-- Palette -->
+      <div class="sb-palette-wrap">
+        <div class="sb-pal-title">Question Number Palette</div>
+        <div class="palette" id="palette"></div>
+      </div>
+
+      <!-- Legend -->
+      <div class="sb-legend">
+        <div class="sb-legend-title">Legend</div>
+        <div class="leg-rows">
+          <div class="leg-row"><div class="leg-sq" style="background:var(--c-nv);"></div>Not Visited</div>
+          <div class="leg-row"><div class="leg-sq" style="background:var(--c-na);"></div>Not Answered</div>
+          <div class="leg-row"><div class="leg-sq" style="background:var(--c-ans);"></div>Answered</div>
+          <div class="leg-row"><div class="leg-sq" style="background:var(--c-mrk);"></div>Marked for Review</div>
+          <div class="leg-row"><div class="leg-sq" style="background:var(--c-amrk);"></div>Answered &amp; Marked</div>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="sb-submit">
+        <button class="btn btn-red" id="btn-sub-sb" style="width:100%;justify-content:center;padding:10px;">Submit Test</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ RESULT ═══ -->
+<div class="screen" id="sc-result">
+  <div class="res-bar">
+    <div class="logo">Exam<em>Desk</em></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-blue" id="btn-retake">🔄 Retake</button>
+      <button class="btn" onclick="window.print()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);">🖨️ Print</button>
+    </div>
+  </div>
+  <div class="res-scroll">
+    <div class="res-body">
+
+      <!-- Hero -->
+      <div class="res-hero">
+        <div class="ring-wrap">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle class="r-bg" cx="70" cy="70" r="56"/>
+            <circle class="r-fill" id="r-fill" cx="70" cy="70" r="56" stroke-dasharray="351.9" stroke-dashoffset="351.9"/>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-pct" id="r-pct">—</div>
+            <div class="ring-lbl" id="r-lbl">SCORE %</div>
+          </div>
+        </div>
+        <div class="res-info">
+          <h2 id="r-title">Test Submitted</h2>
+          <div class="rsub" id="r-sub"></div>
+          <div class="res-stats">
+            <div class="rss"><span class="rv" id="rs-score" style="color:var(--blue);">—</span><span class="rl">Score</span></div>
+            <div class="rss"><span class="rv" id="rs-cor" style="color:var(--green);">—</span><span class="rl">Correct</span></div>
+            <div class="rss"><span class="rv" id="rs-wr" style="color:var(--red);">—</span><span class="rl">Wrong</span></div>
+            <div class="rss"><span class="rv" id="rs-sk" style="color:var(--gray);">—</span><span class="rl">Skipped</span></div>
+            <div class="rss"><span class="rv" id="rs-t" style="color:var(--gray);">—</span><span class="rl">Time Taken</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section breakdown -->
+      <div class="sec-bd" id="sec-bd" style="display:none;">
+        <h3>Section-wise Performance</h3>
+        <div id="sec-bd-rows"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="res-actions">
+        <button class="btn btn-blue" id="btn-retake2">🔄 Retake Test</button>
+        <button class="btn btn-ghost" onclick="window.print()">🖨️ Print Result</button>
+      </div>
+
+      <!-- Review -->
+      <div class="review-card">
+        <h3>Answer Review</h3>
+        <div class="ftabs">
+          <button class="ftab on" data-f="all">All <span id="f-all-c"></span></button>
+          <button class="ftab" data-f="ans">Answered <span id="f-ans-c"></span></button>
+          <button class="ftab" data-f="skip">Skipped <span id="f-sk-c"></span></button>
+        </div>
+        <div class="rev-list" id="rev-list"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Submit modal -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <h3>Submit Test?</h3>
+    <p class="msub">Once submitted, you cannot change any answers.</p>
+    <div class="modal-grid">
+      <div class="mstat ms-ans"><div class="mstat-n" id="m-ans">0</div><div class="mstat-l">ANSWERED</div></div>
+      <div class="mstat ms-na"><div class="mstat-n" id="m-na">0</div><div class="mstat-l">NOT ANSWERED</div></div>
+      <div class="mstat ms-mrk"><div class="mstat-n" id="m-mrk">0</div><div class="mstat-l">MARKED</div></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-red" id="m-ok">Submit Test →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════════ */
+let DATA, ALL_Q = [], SECS = [];
+let RESP  = {};   // idx → option key | null
+let MRK   = {};   // idx → bool
+let VIS   = {};   // idx → bool
+let CUR = 0, CUR_SEC = 0;
+let TIMER, TREM = 0, T_START;
+let DONE = false;
+let CUR_LANG = 'en'; // 'en' or 'hi'
+
+const CFG = { title:'Practice Test', dur:180, mpq:4, neg:1 };
+
+/* ════════════════════════════════════════════════════════════
+   BOOT
+════════════════════════════════════════════════════════════ */
+async function boot() {
+  try {
+    setMsg('Fetching questions.json…');
+    const r = await fetch('questions.json?' + Date.now());
+    if (!r.ok) throw new Error(`Server returned HTTP ${r.status}`);
+    DATA = await r.json();
+
+    if (DATA.error) throw new Error(DATA.error);
+
+    setMsg('Parsing questions…');
+    parseData();
+    if (!ALL_Q.length) throw new Error('No questions found in questions.json');
+
+    // Apply metadata
+    if (DATA.duration)        CFG.dur   = DATA.duration;
+    if (DATA.marksPerQuestion)CFG.mpq   = DATA.marksPerQuestion;
+    if (DATA.negativeMarking !== undefined) CFG.neg = DATA.negativeMarking;
+    CFG.title = (DATA.testTitle || 'Practice Test').slice(0, 90);
+
+    await pause(300);
+    show('sc-inst');
+    buildInst();
+  } catch(e) {
+    document.getElementById('s-msg').style.display = 'none';
+    const el = document.getElementById('s-err');
+    el.innerHTML = `<strong>Could not load questions.json</strong><br><br>${e.message}<br><br>Make sure the server is running:<br><code>python server.py</code><br>Then open <code>http://127.0.0.1:5050/test</code>`;
+    el.classList.add('show');
+  }
+}
+
+function setMsg(m) { document.getElementById('s-msg').textContent = m; }
+function pause(ms) { return new Promise(r => setTimeout(r, ms)); }
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ════════════════════════════════════════════════════════════
+   PARSE
+════════════════════════════════════════════════════════════ */
+function parseData() {
+  let idx = 0;
+  SECS = [];
+  ALL_Q = [];
+  (DATA.sections || []).forEach(sec => {
+    const start = idx;
+    (sec.questions || []).forEach(q => {
+      ALL_Q.push({ ...q, sec: sec.name, gi: idx });
+      RESP[idx] = null; MRK[idx] = false; VIS[idx] = false;
+      idx++;
+    });
+    if (idx > start) SECS.push({ name: sec.name, start, count: idx - start });
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   INSTRUCTIONS
+════════════════════════════════════════════════════════════ */
+function buildInst() {
+  document.getElementById('inst-name').textContent = CFG.title;
+  document.getElementById('inst-sub').textContent =
+    `${SECS.length} section${SECS.length>1?'s':''} · ${ALL_Q.length} questions`;
+
+  const totalM = DATA.totalMarks || (ALL_Q.length * CFG.mpq);
+  const band = document.getElementById('info-band');
+  band.innerHTML = [
+    ['📝', ALL_Q.length, 'Total Questions'],
+    ['⏱️', CFG.dur + ' min', 'Duration'],
+    ['🏆', totalM, 'Maximum Marks'],
+    ['✅', '+' + CFG.mpq, 'Correct Answer'],
+    ['❌', CFG.neg > 0 ? '−' + CFG.neg : 'None', 'Negative Marking'],
+    ['📂', SECS.length, 'Section' + (SECS.length>1?'s':'')],
+  ].map(([icon,v,l]) => `
+    <div class="info-card">
+      <div class="ic-icon">${icon}</div>
+      <div><div class="ic-val">${v}</div><div class="ic-lbl">${l}</div></div>
+    </div>`).join('');
+
+  const chk = document.getElementById('agree-chk');
+  const btn = document.getElementById('btn-start');
+  chk.onchange = () => btn.disabled = !chk.checked;
+  btn.onclick  = startTest;
+}
+
+/* ════════════════════════════════════════════════════════════
+   TEST START
+════════════════════════════════════════════════════════════ */
+function startTest() {
+  show('sc-test');
+
+  document.getElementById('tb-title').textContent = CFG.title;
+  document.getElementById('sb-crole').textContent = CFG.title;
+
+  // Marks chips
+  document.getElementById('m-pos').textContent = '+' + CFG.mpq;
+  if (CFG.neg > 0) { document.getElementById('m-neg').textContent = '−' + CFG.neg; document.getElementById('m-neg').style.display = ''; }
+
+  // Section tabs
+  const tabBar = document.getElementById('sec-tabs');
+  tabBar.innerHTML = SECS.map((s,i) =>
+    `<button class="sec-tab${i===0?' active':''}" data-si="${i}">${esc(s.name)}</button>`
+  ).join('');
+  tabBar.querySelectorAll('.sec-tab').forEach(b =>
+    b.addEventListener('click', () => goTo(SECS[+b.dataset.si].start))
+  );
+
+  // Palette
+  buildPalette();
+
+  // Wire buttons
+  document.getElementById('btn-prev').onclick   = () => goTo(CUR - 1);
+  document.getElementById('btn-snxt').onclick   = () => goTo(CUR + 1);
+  document.getElementById('btn-mrk').onclick    = toggleMark;
+  document.getElementById('btn-clr').onclick    = clearResp;
+  document.getElementById('btn-sub-top').onclick = openModal;
+  document.getElementById('btn-sub-sb').onclick  = openModal;
+
+  // Show language switch if Devanagari questions are available
+  const hasDevanagari = ALL_Q.some(q => q.textDevanagari);
+  if (hasDevanagari) {
+    document.getElementById('lang-switch').style.display = 'inline-flex';
+  }
+
+  // Timer
+  TREM    = CFG.dur * 60;
+  T_START = Date.now();
+  tickTimer();
+  TIMER   = setInterval(tickTimer, 1000);
+
+  goTo(0);
+}
+
+function setLang(lang) {
+  if (DONE) return;
+  CUR_LANG = lang;
+  
+  // Update switcher active class
+  document.getElementById('lang-btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('lang-btn-hi').classList.toggle('active', lang === 'hi');
+  
+  renderQ();
+}
+
+/* ════════════════════════════════════════════════════════════
+   TIMER
+════════════════════════════════════════════════════════════ */
+function tickTimer() {
+  if (TREM <= 0) { clearInterval(TIMER); submit(); return; }
+  const h = Math.floor(TREM/3600), m = Math.floor((TREM%3600)/60), s = TREM%60;
+  document.getElementById('timer-val').textContent =
+    `${pad(h)}:${pad(m)}:${pad(s)}`;
+  const tw = document.getElementById('timer');
+  tw.classList.toggle('warn', TREM <= 300 && TREM > 60);
+  tw.classList.toggle('crit', TREM <= 60);
+  TREM--;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+
+/* ════════════════════════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════════════════════════ */
+function goTo(idx) {
+  if (idx < 0 || idx >= ALL_Q.length) return;
+  CUR = idx; VIS[idx] = true;
+
+  // Sync section tab
+  const si = SECS.findIndex((s,i) =>
+    idx >= s.start && (i===SECS.length-1 || idx < SECS[i+1].start));
+  if (si !== CUR_SEC) {
+    CUR_SEC = si;
+    document.querySelectorAll('.sec-tab').forEach(b =>
+      b.classList.toggle('active', +b.dataset.si === si));
+  }
+
+  renderQ();
+  syncPalette();
+  syncCounts();
+
+  // Scroll q panel to top
+  document.getElementById('qp').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ════════════════════════════════════════════════════════════
+   RENDER QUESTION
+════════════════════════════════════════════════════════════ */
+function renderQ() {
+  const q = ALL_Q[CUR];
+  document.getElementById('q-num').textContent =
+    `Q.${CUR+1} of ${ALL_Q.length} · ${q.sec}`;
+
+  // Support bilingual render
+  const useDevanagari = CUR_LANG === 'hi' && q.textDevanagari;
+  document.getElementById('q-text').textContent = useDevanagari ? q.textDevanagari : q.text;
+
+  const sel = RESP[CUR];
+  document.getElementById('opts').innerHTML =
+    (q.options || []).map(o => {
+      const active = sel === o.key;
+      const optText = useDevanagari && o.textDevanagari ? o.textDevanagari : o.text;
+      return `<button class="opt${active?' sel':''}" onclick="pick(${JSON.stringify(o.key)})">
+        <div class="opt-r"></div>
+        <span class="opt-k">(${o.key})</span>
+        <span style="flex:1;">${esc(optText)}</span>
+      </button>`;
+    }).join('');
+
+  // Mark button state
+  const mb = document.getElementById('btn-mrk');
+  mb.style.background = MRK[CUR] ? '' : '';
+  mb.textContent = MRK[CUR] ? '🚩 Marked' : '🚩 Mark for Review';
+  mb.style.opacity = MRK[CUR] ? '1' : '';
+
+  // Prev / next
+  document.getElementById('btn-prev').disabled = CUR === 0;
+  document.getElementById('btn-snxt').textContent =
+    CUR === ALL_Q.length-1 ? 'Review & Submit →' : 'Save & Next →';
+  document.getElementById('btn-snxt').onclick =
+    CUR === ALL_Q.length-1 ? openModal : () => goTo(CUR+1);
+}
+
+/* ════════════════════════════════════════════════════════════
+   RESPONSES
+════════════════════════════════════════════════════════════ */
+function pick(key) {
+  if (DONE) return;
+  RESP[CUR] = RESP[CUR] === key ? null : key;
+  renderQ();
+  syncPalette();
+  syncCounts();
+}
+
+function toggleMark() {
+  MRK[CUR] = !MRK[CUR];
+  renderQ();
+  syncPalette();
+  syncCounts();
+}
+
+function clearResp() {
+  RESP[CUR] = null;
+  renderQ();
+  syncPalette();
+  syncCounts();
+}
+
+/* ════════════════════════════════════════════════════════════
+   PALETTE & COUNTS
+════════════════════════════════════════════════════════════ */
+function buildPalette() {
+  document.getElementById('palette').innerHTML =
+    ALL_Q.map((_,i) =>
+      `<button class="pal-btn" data-pi="${i}" onclick="goTo(${i})">${i+1}</button>`
+    ).join('');
+  syncPalette();
+}
+
+function palCls(i) {
+  const a = RESP[i]!==null, m = MRK[i], v = VIS[i];
+  if (a && m) return 'p-amrk';
+  if (a) return 'p-ans';
+  if (m) return 'p-mrk';
+  if (v) return 'p-na';
+  return 'p-nv';
+}
+
+function syncPalette() {
+  document.querySelectorAll('.pal-btn').forEach(b => {
+    const i = +b.dataset.pi;
+    b.className = `pal-btn ${palCls(i)}${i===CUR?' cur':''}`;
+  });
+}
+
+function syncCounts() {
+  let ans=0, mrk=0, nv=0;
+  ALL_Q.forEach((_,i) => {
+    if (RESP[i]!==null) ans++;
+    if (MRK[i]) mrk++;
+    if (!VIS[i]) nv++;
+  });
+  document.getElementById('st-ans').textContent = ans;
+  document.getElementById('st-na').textContent  = ALL_Q.length - ans;
+  document.getElementById('st-mrk').textContent = mrk;
+  document.getElementById('st-nv').textContent  = nv;
+}
+
+/* ════════════════════════════════════════════════════════════
+   SUBMIT MODAL
+════════════════════════════════════════════════════════════ */
+function openModal() {
+  let ans=0, mrk=0;
+  ALL_Q.forEach((_,i) => { if(RESP[i]!==null) ans++; if(MRK[i]) mrk++; });
+  document.getElementById('m-ans').textContent = ans;
+  document.getElementById('m-na').textContent  = ALL_Q.length - ans;
+  document.getElementById('m-mrk').textContent = mrk;
+  document.getElementById('modal').classList.add('open');
+}
+document.getElementById('m-cancel').onclick = () => document.getElementById('modal').classList.remove('open');
+document.getElementById('m-ok').onclick     = () => { document.getElementById('modal').classList.remove('open'); submit(); };
+
+/* ════════════════════════════════════════════════════════════
+   SUBMIT & RESULT
+════════════════════════════════════════════════════════════ */
+function submit() {
+  if (DONE) return;
+  DONE = true;
+  clearInterval(TIMER);
+  const elapsed = Math.floor((Date.now() - T_START) / 1000);
+  buildResult(elapsed);
+  show('sc-result');
+}
+
+function buildResult(elapsed) {
+  const hasKey = ALL_Q.some(q => q.correctAnswer);
+  let cor=0, wr=0, sk=0, score=0;
+  ALL_Q.forEach((q,i) => {
+    const a = RESP[i];
+    if (!a) { sk++; return; }
+    if (hasKey && q.correctAnswer) {
+      if (a === q.correctAnswer) { cor++; score += CFG.mpq; }
+      else { wr++; score -= CFG.neg; }
+    }
+  });
+  const ans = ALL_Q.length - sk;
+  const totalM = DATA.totalMarks || (ALL_Q.length * CFG.mpq);
+  const pct = hasKey && totalM > 0 ? Math.max(0, Math.round(score/totalM*100)) : null;
+
+  // Ring
+  const circ = 351.9;
+  document.getElementById('r-pct').textContent = pct !== null ? pct+'%' : ans;
+  document.getElementById('r-lbl').textContent = pct !== null ? 'SCORE %' : 'ANSWERED';
+  setTimeout(() => {
+    const ratio = pct !== null ? pct/100 : ans/ALL_Q.length;
+    document.getElementById('r-fill').style.strokeDashoffset = circ - circ*ratio;
+  }, 100);
+
+  document.getElementById('r-title').textContent = CFG.title;
+  document.getElementById('r-sub').textContent   = hasKey
+    ? `Score: ${score} / ${totalM}`
+    : `${ans} of ${ALL_Q.length} questions answered`;
+
+  document.getElementById('rs-score').textContent = hasKey ? score : ans;
+  document.getElementById('rs-cor').textContent   = hasKey ? cor : '—';
+  document.getElementById('rs-wr').textContent    = hasKey ? wr  : '—';
+  document.getElementById('rs-sk').textContent    = sk;
+  document.getElementById('rs-t').textContent     = fmtT(elapsed);
+
+  // Section breakdown
+  if (SECS.length > 1) {
+    document.getElementById('sec-bd').style.display = '';
+    document.getElementById('sec-bd-rows').innerHTML = SECS.map(s => {
+      let a=0;
+      for(let i=s.start;i<s.start+s.count;i++) if(RESP[i]!==null) a++;
+      const p = Math.round(a/s.count*100);
+      return `<div class="bd-row">
+        <div class="bd-name">${esc(s.name)}</div>
+        <div class="bd-bar-wrap"><div class="bd-bar" style="width:${p}%"></div></div>
+        <div class="bd-stat">${a}/${s.count}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Review counts
+  const skip = ALL_Q.filter((_,i)=>!RESP[i]).length;
+  document.getElementById('f-all-c').textContent = `(${ALL_Q.length})`;
+  document.getElementById('f-ans-c').textContent = `(${ans})`;
+  document.getElementById('f-sk-c').textContent  = `(${skip})`;
+
+  buildReview('all');
+
+  document.querySelectorAll('.ftab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('on'));
+      tab.classList.add('on');
+      buildReview(tab.dataset.f);
+    };
+  });
+
+  [document.getElementById('btn-retake'), document.getElementById('btn-retake2')]
+    .forEach(b => b.onclick = () => location.reload());
+}
+
+function buildReview(filter) {
+  const hasKey = ALL_Q.some(q => q.correctAnswer);
+  const html = ALL_Q.map((q,i) => {
+    const a = RESP[i];
+    const isSkip = !a;
+    if (filter==='ans' && isSkip) return null;
+    if (filter==='skip' && !isSkip) return null;
+
+    const isC = hasKey && q.correctAnswer && a===q.correctAnswer;
+    const isW = hasKey && q.correctAnswer && a && a!==q.correctAnswer;
+    let cls='ri', icon='📝';
+    if (isC) { cls='ri ri-c'; icon='✅'; }
+    else if (isW) { cls='ri ri-w'; icon='❌'; }
+    else if (isSkip) { cls='ri ri-s'; icon='⏭️'; }
+
+    let qTextEn = q.text.replace(/\n/g,' ').slice(0,130) + (q.text.length>130?'…':'');
+    let reviewHtml = `<div class="ri-q"><strong>Q${i+1}.</strong> ${esc(qTextEn)}</div>`;
+    
+    if (q.textDevanagari) {
+      let qTextHi = q.textDevanagari.replace(/\n/g,' ').slice(0,130) + (q.textDevanagari.length>130?'…':'');
+      reviewHtml += `<div class="ri-q" style="color:#4b5563; font-size:12px; margin-top:2px;">${esc(qTextHi)}</div>`;
+    }
+
+    const yourA = a
+      ? `<span class="${isC?'a-c':isW?'a-w':'a-u'}">Your: (${a})</span>`
+      : `<span style="color:#94a3b8;">Not answered</span>`;
+    const corrA = (hasKey&&q.correctAnswer)
+      ? `<span class="a-c">Correct: (${q.correctAnswer})</span>` : '';
+
+    return `<div class="${cls}">
+      <div class="ri-icon">${icon}</div>
+      <div style="flex:1;min-width:0;">
+        ${reviewHtml}
+        <div class="ri-ans">${yourA}${corrA}</div>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  document.getElementById('rev-list').innerHTML = html ||
+    `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:13px;">No questions match this filter.</div>`;
+}
+
+/* ════════════════════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════════════════════ */
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtT(s) {
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  return h>0?`${h}h ${m}m ${sec}s`:m>0?`${m}m ${sec}s`:`${sec}s`;
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>
