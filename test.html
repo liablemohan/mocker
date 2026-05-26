@@ -743,7 +743,7 @@ async function boot() {
   } catch(e) {
     document.getElementById('s-msg').style.display = 'none';
     const el = document.getElementById('s-err');
-    el.innerHTML = `<strong>Could not load questions.json</strong><br><br>${e.message}<br><br>Make sure the server is running:<br><code>python server.py</code><br>Then open <code>http://127.0.0.1:5050/test</code>`;
+    el.innerHTML = `<strong>Could not load questions.json</strong><br><br>${e.message}<br><br>If running locally, make sure the server is running:<br><code>FLASK_RUN_PORT=5050 python server.py</code><br>Then open <code>http://127.0.0.1:5050/test</code>`;
     el.classList.add('show');
   }
 }
@@ -910,7 +910,8 @@ function renderQ() {
 
   // Support bilingual render
   const useDevanagari = CUR_LANG === 'hi' && q.textDevanagari;
-  document.getElementById('q-text').textContent = useDevanagari ? q.textDevanagari : q.text;
+  let txt = useDevanagari ? q.textDevanagari : q.text;
+  document.getElementById('q-text').textContent = txt ? txt.replace(/\n\s*\n+/g, '\n\n').trim() : '';
 
   const sel = RESP[CUR];
   document.getElementById('opts').innerHTML =

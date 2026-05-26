@@ -2,9 +2,9 @@
 ExamDesk Backend Server
 =======================
 Provides a REST API that orchestrates:
-  1. PDF → PNG conversion  (pdf2image + PyPDF2)
-  2. Page-by-page OCR      (Selenium → ocr.sanskritdictionary.com)
-  3. Gemini API call        (google-generativeai)
+  1. PDF → PNG conversion  (pdf2image / Poppler)
+  2. Page-by-page OCR      (Tesseract — dual-pass: English + Devanagari)
+  3. Gemini API call        (google-genai SDK)
   4. Structured JSON output saved to disk and returned to the browser
 
 Run:
@@ -15,6 +15,7 @@ Endpoints:
     GET  /status/<job_id>           — Returns current pipeline status JSON
     GET  /result/<job_id>           — Returns the final parsed JSON
     GET  /health                    — Returns { ok: true }
+    POST /reset                     — Clears all jobs and cached data
 """
 
 import os
@@ -22,19 +23,12 @@ import re
 import sys
 import json
 import uuid
-import time
-import glob
 import shutil
-import random
 import threading
 import traceback
+import subprocess
 from pathlib import Path
 from datetime import datetime
-
-# Ensure locally-installed packages are importable on macOS Python 3.9
-_site = '/Users/mohankumar/Library/Python/3.9/lib/python/site-packages'
-if _site not in sys.path:
-    sys.path.insert(0, _site)
 
 # ─── Flask ────────────────────────────────────────────────────────────────────
 from flask import Flask, request, jsonify, send_from_directory
@@ -43,8 +37,6 @@ from flask_cors import CORS
 # ─── Config ───────────────────────────────────────────────────────────────────
 from config import (
     GEMINI_API_KEY, GEMINI_MODEL,
-    BASE_OCR_URL,
-    MIN_DELAY, MAX_DELAY,
     BASE_DIR, JOBS_DIR,
     FLASK_HOST, FLASK_PORT, FLASK_DEBUG,
     PDF_DPI,
@@ -55,9 +47,6 @@ from google import genai as google_genai
 
 gemini_client = google_genai.Client(api_key=GEMINI_API_KEY)
 
-# ─── Tesseract Subprocess ─────────────────────────────────────────────────────
-import subprocess
-
 # ─── PDF tools ────────────────────────────────────────────────────────────────
 from pdf2image import convert_from_path
 from PyPDF2 import PdfReader
@@ -65,6 +54,7 @@ from PyPDF2 import PdfReader
 # ─── App setup ────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB upload limit
 
 os.makedirs(JOBS_DIR, exist_ok=True)
 
@@ -119,61 +109,52 @@ def failed_dir(job_id):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STEP 1 — PDF → PNG
+# HYBRID EXTRACTION PIPELINE
 # ══════════════════════════════════════════════════════════════════════════════
 
-def step_pdf_to_png(job_id, pdf_path):
-    """Convert every page of the PDF to a PNG image."""
-    update_job(job_id, status="converting", step="Converting PDF to images…", progress=5)
+STRUCTURAL_PATTERNS = re.compile(
+    r"(Question Id\s*:|Option Shuffling|Question Type\s*:|"
+    r"Display Question Number|Is\nQuestion Mandatory|Option Orientation|"
+    r"Correct Marks\s*:|Wrong Marks\s*:|Options\s*:|Sub questions|"
+    r"^\s*\d+\.\s*\d+\s*$|^\s*\d+\s*$|"
+    r"\d{10,}\.?\s*\d{1,2}$)",
+    re.IGNORECASE | re.MULTILINE,
+)
 
-    img_dir = image_dir(job_id)
-    os.makedirs(img_dir, exist_ok=True)
-
-    reader = PdfReader(pdf_path)
-    total = len(reader.pages)
-    update_job(job_id, total_pages=total)
-
-    for i in range(total):
-        images = convert_from_path(pdf_path, dpi=PDF_DPI, first_page=i + 1, last_page=i + 1)
-        out_path = os.path.join(img_dir, f"page_{i + 1:03d}.png")
-        images[0].save(out_path, "PNG")
-
-        pct = 5 + int((i + 1) / total * 20)   # 5 → 25%
-        update_job(
-            job_id,
-            step=f"Converting page {i + 1}/{total}…",
-            progress=pct,
-        )
-
-    print(f"[{job_id}] ✅ PDF → PNG complete ({total} pages)")
-    return total
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# STEP 2 — TESSERACT OCR
-# ══════════════════════════════════════════════════════════════════════════════
+def is_structural_only(text: str) -> bool:
+    if not text or len(text.strip()) < 30:
+        return True
+    
+    # Strip out all known structural patterns and see how much real text is left
+    cleaned_text = STRUCTURAL_PATTERNS.sub("", text)
+    # Also strip out basic numbers, punctuation, and whitespace to see if real words exist
+    real_words = re.sub(r"[\d\W_]+", "", cleaned_text)
+    
+    # If the remaining actual letters (English/Hindi) are very few, it's a structural page
+    if len(real_words) < 50:
+        return True
+        
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    structural = sum(1 for l in lines if STRUCTURAL_PATTERNS.search(l))
+    if len(lines) > 0 and structural / len(lines) > 0.6:
+        return True
+    return False
 
 def get_tesseract_path():
-    """Locate Tesseract binary on the system (supporting Mac Homebrew)."""
     path = shutil.which("tesseract")
-    if path:
-        return path
+    if path: return path
     for p in ["/opt/homebrew/bin/tesseract", "/usr/local/bin/tesseract"]:
-        if os.path.exists(p):
-            return p
+        if os.path.exists(p): return p
     return "tesseract"
 
-
 def ocr_image_tesseract(image_path: str, lang: str = "eng") -> tuple[bool, str]:
-    """Run local Tesseract OCR on a single image for the specified language."""
     tess_path = get_tesseract_path()
     try:
         abs_path = str(Path(image_path).absolute())
         cwd = str(Path(image_path).parent.absolute())
         result = subprocess.run(
             [tess_path, abs_path, "stdout", "--oem", "3", "--psm", "6", "-l", lang],
-            capture_output=True,
-            cwd=cwd,
+            capture_output=True, cwd=cwd,
         )
         text = result.stdout.decode("utf-8", errors="replace").strip()
         return (True, text) if text else (False, "")
@@ -181,89 +162,79 @@ def ocr_image_tesseract(image_path: str, lang: str = "eng") -> tuple[bool, str]:
         print(f"Tesseract error: {e}")
         return False, ""
 
-
-def step_ocr(job_id, total_pages):
-    """Run local Tesseract OCR on every PNG image for the given job."""
-    update_job(job_id, status="ocr", step="Starting OCR engine…", progress=25)
-
+def step_hybrid_extract(job_id, pdf_path):
+    update_job(job_id, status="converting", step="Reading PDF…", progress=5)
+    
     img_dir = image_dir(job_id)
     res_dir = results_dir(job_id)
     fail_dir = failed_dir(job_id)
+    os.makedirs(img_dir, exist_ok=True)
     os.makedirs(res_dir, exist_ok=True)
     os.makedirs(fail_dir, exist_ok=True)
 
-    pattern = os.path.join(img_dir, "page_*.png")
-    all_files = sorted(
-        glob.glob(pattern),
-        key=lambda p: int(re.search(r"page_(\d+)", os.path.basename(p)).group(1)),
-    )
+    reader = PdfReader(pdf_path)
+    total_pages = len(reader.pages)
+    update_job(job_id, total_pages=total_pages)
 
-    if not all_files:
-        raise RuntimeError(f"No PNG files found in {img_dir}")
+    good_pages = {}
+    structural_pages = []
 
-    all_text_parts = []
-
-    for idx, path in enumerate(all_files, 1):
-        fname = os.path.basename(path)
-        pg = int(re.search(r"page_(\d+)", fname).group(1))
-
-        # Skip if already done (resume support)
-        page_file = os.path.join(res_dir, f"page_{pg:03d}.txt")
-        if os.path.exists(page_file):
-            with open(page_file, "r", encoding="utf-8") as f:
-                all_text_parts.append((pg, f.read()))
-            ocr_pct = 25 + int(idx / total_pages * 50)
-            update_job(
-                job_id,
-                step=f"OCR: page {idx}/{total_pages} (cached)",
-                progress=ocr_pct,
-                ocr_done=idx,
-            )
-            continue
-
-        # File size guard (10 MB)
-        if os.path.getsize(path) > 10 * 1024 * 1024:
-            shutil.copy(path, os.path.join(fail_dir, fname))
-            continue
-
-        # Pass 1: Roman Script (English)
-        success_roman, text_roman = ocr_image_tesseract(path, lang="eng")
-        # Pass 2: Devanagari Script (Hindi/Sanskrit)
-        success_deva, text_deva = ocr_image_tesseract(path, lang="script/Devanagari")
-
-        if success_roman or success_deva:
-            combined_text = (
-                f"=== Page {pg} (Roman Script) ===\n{text_roman}\n\n"
-                f"=== Page {pg} (Devanagari Script) ===\n{text_deva}\n"
-            )
-            with open(page_file, "w", encoding="utf-8") as f:
-                f.write(combined_text)
-            all_text_parts.append((pg, combined_text))
+    # Copy-paste pass
+    for i, page in enumerate(reader.pages, 1):
+        text = page.extract_text() or ""
+        if not is_structural_only(text):
+            good_pages[i] = text
         else:
-            shutil.copy(path, os.path.join(fail_dir, fname))
+            structural_pages.append(i)
+        
+        pct = 5 + int(i / total_pages * 10) # 5 -> 15%
+        update_job(job_id, step=f"Scanning page {i}/{total_pages}…", progress=pct)
 
-        ocr_pct = 25 + int(idx / total_pages * 50)  # 25 → 75%
-        update_job(
-            job_id,
-            step=f"OCR: page {idx}/{total_pages}",
-            progress=ocr_pct,
-            ocr_done=idx,
-        )
+    print(f"[{job_id}] PyPDF2 found {len(good_pages)} good pages, {len(structural_pages)} need OCR.")
 
-        if idx < len(all_files):
-            if MIN_DELAY > 0 or MAX_DELAY > 0:
-                delay = random.randint(MIN_DELAY, MAX_DELAY)
-                time.sleep(delay)
+    # Selective OCR pass
+    ocr_pages = {}
+    if structural_pages:
+        update_job(job_id, status="ocr", step=f"Starting OCR on {len(structural_pages)} pages…", progress=20)
+        
+        for idx, pg in enumerate(structural_pages, 1):
+            update_job(job_id, step=f"Rendering page {pg} for OCR…", progress=20 + int(idx/len(structural_pages)*5))
+            images = convert_from_path(pdf_path, dpi=PDF_DPI, first_page=pg, last_page=pg)
+            if not images:
+                continue
+            
+            img_path = os.path.join(img_dir, f"page_{pg:03d}.png")
+            images[0].save(img_path, "PNG")
 
-    # Write combined file
-    all_text_parts.sort(key=lambda x: x[0])
+            update_job(job_id, step=f"OCR: page {pg} ({idx}/{len(structural_pages)})", progress=25 + int(idx/len(structural_pages)*45), ocr_done=idx)
+            
+            success_roman, text_roman = ocr_image_tesseract(img_path, lang="eng")
+            success_deva, text_deva = ocr_image_tesseract(img_path, lang="script/Devanagari")
+            
+            if success_roman or success_deva:
+                combined_text = (
+                    f"=== Page {pg} (Roman Script) ===\n{text_roman}\n\n"
+                    f"=== Page {pg} (Devanagari Script) ===\n{text_deva}\n"
+                )
+                ocr_pages[pg] = combined_text
+            else:
+                shutil.copy(img_path, os.path.join(fail_dir, f"page_{pg:03d}.png"))
+                ocr_pages[pg] = ""
+
+    # Merge
+    update_job(job_id, status="ocr", step="Merging extracted text…", progress=75)
+    all_pages = {**good_pages}
+    for pg, text in ocr_pages.items():
+        cp_text = good_pages.get(pg, "")
+        all_pages[pg] = text if len(text) > len(cp_text) else cp_text
+
     combined_path = os.path.join(res_dir, "all_pages.txt")
     with open(combined_path, "w", encoding="utf-8") as out:
-        for pg, text in all_text_parts:
-            out.write(f"{'=' * 60}\nPage {pg}\n{'=' * 60}\n{text}\n\n")
+        for pg in sorted(all_pages):
+            out.write(f"{'=' * 60}\nPage {pg}\n{'=' * 60}\n{all_pages[pg]}\n\n")
 
-    full_text = "\n".join(t for _, t in all_text_parts)
-    print(f"[{job_id}] ✅ OCR complete — {len(all_text_parts)} pages extracted")
+    full_text = "\n\n".join(all_pages[pg] for pg in sorted(all_pages))
+    print(f"[{job_id}] ✅ Hybrid extraction complete — {len(all_pages)} pages extracted")
     return full_text
 
 
@@ -429,7 +400,7 @@ def extract_metadata_locally(raw_text):
     return metadata
 
 
-def step_gemini(job_id, raw_text):
+def step_gemini(job_id, raw_text, api_key=None):
     """Send OCR text to Gemini to parse questions, merging with locally extracted metadata."""
     update_job(job_id, status="gemini", step="Calling Gemini AI…", progress=80)
 
@@ -440,19 +411,55 @@ def step_gemini(job_id, raw_text):
     # 2. Call Gemini for question structure only
     prompt = GEMINI_PROMPT_TEMPLATE.format(rawText=raw_text)
 
-    response = gemini_client.models.generate_content(
+    if api_key:
+        client = google_genai.Client(api_key=api_key)
+    else:
+        client = gemini_client
+
+    response_stream = client.models.generate_content_stream(
         model=GEMINI_MODEL,
         contents=prompt,
     )
-    raw_response = response.text.strip()
+    
+    raw_response = ""
+    current_progress = 80
+    chunk_count = 0
+    
+    for chunk in response_stream:
+        if chunk.text:
+            raw_response += chunk.text
+            chunk_count += 1
+            
+            # Increment progress by 1 for every 5 chunks, capped at 98%
+            if chunk_count % 5 == 0 and current_progress < 98:
+                current_progress += 1
+                
+            update_job(job_id, progress=current_progress, step=f"Receiving Gemini AI response... ({len(raw_response)} bytes)")
+
+    raw_response = raw_response.strip()
 
     # Strip markdown code fences if Gemini wraps the JSON
     if raw_response.startswith("```"):
         raw_response = re.sub(r"^```[a-z]*\n?", "", raw_response)
         raw_response = re.sub(r"\n?```$", "", raw_response).strip()
 
+    # Save raw response for debugging (especially useful if truncated)
+    raw_path = os.path.join(job_dir(job_id), "raw_gemini_response.txt")
+    with open(raw_path, "w", encoding="utf-8") as f:
+        f.write(raw_response)
+
     # Validate JSON
-    parsed = json.loads(raw_response)
+    try:
+        parsed = json.loads(raw_response)
+    except json.JSONDecodeError as e:
+        print(f"[{job_id}] ⚠️ JSON truncated or invalid: {e}. Attempting basic fix...")
+        # If truncated, we try a hacky fix by closing arrays/objects
+        try:
+            fixed_response = raw_response + "\n}\n]\n}\n]\n}"
+            parsed = json.loads(fixed_response)
+        except:
+            # Fallback
+            parsed = {"sections": []}
 
     # 3. Merge locally parsed metadata with Gemini sections/questions
     result_json = {
@@ -479,17 +486,14 @@ def step_gemini(job_id, raw_text):
 # PIPELINE ORCHESTRATOR
 # ══════════════════════════════════════════════════════════════════════════════
 
-def run_pipeline(job_id, pdf_path):
-    """Full pipeline: PDF → PNG → OCR → Gemini. Runs in a background thread."""
+def run_pipeline(job_id, pdf_path, api_key=None):
+    """Full pipeline: Hybrid Extraction → Gemini. Runs in a background thread."""
     try:
-        # Step 1: PDF → PNG
-        total_pages = step_pdf_to_png(job_id, pdf_path)
-
-        # Step 2: OCR
-        raw_text = step_ocr(job_id, total_pages)
+        # Step 1 & 2: Hybrid Extract (PyPDF2 + Tesseract)
+        raw_text = step_hybrid_extract(job_id, pdf_path)
 
         # Step 3: Gemini
-        result = step_gemini(job_id, raw_text)
+        result = step_gemini(job_id, raw_text, api_key)
 
         update_job(
             job_id,
@@ -540,8 +544,10 @@ def upload():
 
     new_job(job_id)
 
+    api_key = request.form.get("api_key")
+
     # Start pipeline in background thread
-    t = threading.Thread(target=run_pipeline, args=(job_id, pdf_path), daemon=True)
+    t = threading.Thread(target=run_pipeline, args=(job_id, pdf_path, api_key), daemon=True)
     t.start()
 
     return jsonify({"job_id": job_id})

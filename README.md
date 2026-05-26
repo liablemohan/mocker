@@ -13,49 +13,72 @@ ExamDesk is a high-fidelity Computer Based Test (CBT) practice platform designed
   - Runs Tesseract **twice** (Pass 1 with `-l eng` for English, Pass 2 with `-l script/Devanagari` for Sanskrit/Hindi) to guarantee pristine text rendering.
 - **Real-Time Language Switcher**: Pill toggle `[ English | हिंदी ]` to instantly switch the active question and options from English to Hindi in real-time.
 - **Deep Analytics Dashboard**: Dynamic score progress ring, section-wise progress tracking, and stacked bilingual answer review list.
+- **BYOK (Bring Your Own Key)**: Submit your own Gemini API Key dynamically from the frontend.
 
 ---
 
-## 🛠️ Local Installation & Setup
+## 🛠️ Local Setup Guidelines
 
-### 1. Prerequisites (macOS)
-ExamDesk requires **Tesseract** and **Poppler** system libraries:
+Follow these steps to run ExamDesk on your own machine. 
 
+### 1. System Dependencies (OCR & PDF Processing)
+ExamDesk relies on **Tesseract** (for OCR) and **Poppler** (for PDF rendering). You must install these at the system level.
+
+**For macOS (using Homebrew):**
 ```bash
-# Install Tesseract OCR and the Devanagari script pack
 brew install tesseract
 brew install tesseract-lang
-
-# Install Poppler (for PDF-to-image conversion)
 brew install poppler
 ```
 
-### 2. Python Dependencies
-Install the required packages listed in `requirements.txt`:
+**For Ubuntu/Debian Linux:**
+```bash
+sudo apt-get update
+sudo apt-get install tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin poppler-utils
+```
+
+**For Windows:**
+- Download and install Tesseract from [UB-Mannheim Tesseract installers](https://github.com/UB-Mannheim/tesseract/wiki).
+- Download and extract Poppler for Windows from [oschwartz10612/poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases). Add the `bin/` folder to your system PATH.
+
+### 2. Python Environment Setup
+We recommend using a virtual environment.
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/ExamDesk.git
+cd ExamDesk
+
+# Create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Set up Gemini API Key
-Configure your Gemini API key in [config.py](file:///Users/mohankumar/Desktop/Mocker/config.py):
+### 3. API Configuration
+While the web app allows you to paste a Gemini API Key on the upload screen, you can also set a default server key. 
+In `config.py`, add your API key:
 ```python
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
+GEMINI_API_KEY = "YOUR_DEFAULT_API_KEY"
 ```
 
----
-
-## 🚀 Running Locally
-
-### Start the Flask Server
-Run the backend web app:
+### 4. Running the App
+Start the Flask backend:
 ```bash
 python server.py
 ```
+Open your browser and navigate to:
+- **Main Portal**: [http://127.0.0.1:5050/](http://127.0.0.1:5050/)
 
-Open the following URLs in your browser:
-- **Test Simulator Interface**: [http://127.0.0.1:5050/test](http://127.0.0.1:5050/test)
-- **PDF Upload Dashboard**: [http://127.0.0.1:5050/](http://127.0.0.1:5050/)
+---
+
+## 🤖 AI Setup Prompt
+
+If you are using an AI Agent (like GitHub Copilot, Gemini IDE, or Cursor) and want it to set up this repository for you, just copy and paste the prompt below into the chat:
+
+> **"I have just cloned the ExamDesk repository. Please help me set up the local environment. I am on [Insert OS: macOS / Ubuntu / Windows]. First, check if Tesseract and Poppler are installed, and install them if they aren't. Then, create a Python virtual environment, install the dependencies from requirements.txt, and finally, start the Flask server by running `python server.py` in the background."**
 
 ---
 

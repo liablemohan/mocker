@@ -1,12 +1,26 @@
 # Temporary job data and uploads
 jobs/
 
+# Large test PDF files
+*.pdf
+
 # Python cache files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
+# Virtual environment
+venv/
+.venv/
+env/
+
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Environment & secrets
+.env
+.env.local
+# config.py is safe (uses env vars), but add a local override pattern
+config.local.py
