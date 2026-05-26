@@ -14,7 +14,7 @@ __pycache__/
 # Virtual environment
 venv/
 .venv/
-env/
+.env/
 
 # Operating system files
 .DS_Store
