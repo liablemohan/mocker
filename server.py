@@ -45,7 +45,7 @@ from config import (
 # ─── Gemini SDK (google-genai) ────────────────────────────────────────────────
 from google import genai as google_genai
 
-gemini_client = google_genai.Client(api_key=GEMINI_API_KEY)
+gemini_client = google_genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 # ─── PDF tools ────────────────────────────────────────────────────────────────
 from pdf2image import convert_from_path
@@ -415,6 +415,9 @@ def step_gemini(job_id, raw_text, api_key=None):
         client = google_genai.Client(api_key=api_key)
     else:
         client = gemini_client
+        
+    if not client:
+        raise ValueError("No Gemini API key provided. Set the GEMINI_API_KEY environment variable or provide one in the UI.")
 
     response_stream = client.models.generate_content_stream(
         model=GEMINI_MODEL,
