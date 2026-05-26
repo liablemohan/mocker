@@ -915,7 +915,7 @@ function renderQ() {
     (q.options || []).map(o => {
       const active = sel === o.key;
       const optText = useDevanagari && o.textDevanagari ? o.textDevanagari : o.text;
-      return `<button class="opt${active?' sel':''}" onclick="pick(${JSON.stringify(o.key)})">
+      return `<button class="opt${active?' sel':''}" onclick="pick('${o.key}')">
         <div class="opt-r"></div>
         <span class="opt-k">(${o.key})</span>
         <span style="flex:1;">${esc(optText)}</span>
