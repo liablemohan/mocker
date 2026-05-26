@@ -622,6 +622,35 @@ def questions_json():
         return jsonify(json.load(fp))
 
 
+@app.route("/reset", methods=["POST"])
+def reset():
+    """Resets the platform data (clears jobs and deletes cached questions)."""
+    # 1. Clear in-memory jobs list
+    with jobs_lock:
+        jobs.clear()
+
+    # 2. Clear out jobs folder
+    if os.path.exists(JOBS_DIR):
+        try:
+            shutil.rmtree(JOBS_DIR)
+            os.makedirs(JOBS_DIR, exist_ok=True)
+        except Exception as e:
+            print(f"Error clearing JOBS_DIR: {e}")
+
+    # 3. Delete root level questions.json and extracted_raw.txt
+    root_json = os.path.join(BASE_DIR, "questions.json")
+    raw_txt = os.path.join(BASE_DIR, "extracted_raw.txt")
+
+    for path in [root_json, raw_txt]:
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception as e:
+                print(f"Error deleting file {path}: {e}")
+
+    return jsonify({"ok": True})
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # ENTRY POINT
 # ══════════════════════════════════════════════════════════════════════════════

@@ -623,6 +623,7 @@ circle { fill: none; stroke-width: 14; }
     <div class="logo">Exam<em>Desk</em></div>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-blue" id="btn-retake">🔄 Retake</button>
+      <button class="btn btn-red" id="btn-another-test">Take Another Test</button>
       <button class="btn" onclick="window.print()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);">🖨️ Print</button>
     </div>
   </div>
@@ -663,6 +664,7 @@ circle { fill: none; stroke-width: 14; }
       <!-- Actions -->
       <div class="res-actions">
         <button class="btn btn-blue" id="btn-retake2">🔄 Retake Test</button>
+        <button class="btn btn-red" id="btn-another-test2">Take Another Test</button>
         <button class="btn btn-ghost" onclick="window.print()">🖨️ Print Result</button>
       </div>
 
@@ -1095,6 +1097,20 @@ function buildResult(elapsed) {
 
   [document.getElementById('btn-retake'), document.getElementById('btn-retake2')]
     .forEach(b => b.onclick = () => location.reload());
+
+  async function takeAnother() {
+    try {
+      await fetch('/reset', { method: 'POST' });
+    } catch(e) {
+      console.error("Error resetting database:", e);
+    }
+    window.location.href = "/";
+  }
+
+  [document.getElementById('btn-another-test'), document.getElementById('btn-another-test2')]
+    .forEach(b => {
+      if (b) b.onclick = takeAnother;
+    });
 }
 
 function buildReview(filter) {
