@@ -217,6 +217,9 @@ textarea::placeholder{color:var(--gray-400);}
 .mark-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;}
 .mc-pos{background:var(--green-l);color:var(--green);}
 .mc-neg{background:var(--red-l);color:var(--red);}
+.lang-switch{display:inline-flex;background:var(--gray-100);border:1.5px solid var(--gray-200);border-radius:6px;padding:2px;gap:2px;}
+.lang-btn{padding:2px 8px;font-size:11px;font-weight:600;border-radius:4px;background:transparent;color:var(--gray-500);border:none;cursor:pointer;transition:all 0.15s ease;}
+.lang-btn.active{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
 
 .q-content{padding:24px 20px 16px;background:var(--gray-50);flex:1;}
 .q-text{font-size:15px;font-weight:500;line-height:1.7;color:var(--gray-900);margin-bottom:24px;}
@@ -421,15 +424,15 @@ textarea::placeholder{color:var(--gray-400);}
         <h2>Upload your question paper</h2>
         <p>We'll convert it into a Testbook-style CBT. Free, instant, no login.</p>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="display:none;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <span class="srv-badge" id="srv-badge"><span class="srv-dot"></span><span id="srv-badge-lbl">Checking AI server…</span></span>
         <span style="font-size:12px;color:var(--gray-400);">Smart PDF: converts + OCR + Gemini AI automatically</span>
       </div>
-      <div class="srv-offline-note" id="srv-offline-note">⚠️ AI server is offline. PDFs will be processed with in-browser OCR only — paste text manually or start the Flask server.</div>
+      <div class="srv-offline-note" id="srv-offline-note" style="display:none;">⚠️ AI server is offline. PDFs will be processed with in-browser OCR only — paste text manually or start the Flask server.</div>
 
       <div id="upload-alert" class="alert alert-red"></div>
 
-      <div class="paste-box" style="margin-bottom: -10px;">
+      <div class="paste-box" style="display:none;">
         <label>GEMINI API KEY (OPTIONAL)</label>
         <input type="text" id="gemini-api-key" placeholder="AIzaSy..." style="width:100%; background:var(--gray-50); border:1.5px solid var(--gray-200); border-radius:6px; padding:10px 12px; font-family:'JetBrains Mono',monospace; font-size:12px; outline:none;"/>
         <div style="font-size:11px; color:var(--gray-500); margin-top:-6px;">If provided, this key will be used instead of the server's default key.</div>
@@ -446,9 +449,9 @@ textarea::placeholder{color:var(--gray-400);}
         </div>
       </div>
 
-      <div class="or-divider">or paste your questions below</div>
+      <div class="or-divider" style="display:none;">or paste your questions below</div>
 
-      <div class="paste-box">
+      <div class="paste-box" style="display:none;">
         <label>PASTE / TYPE MCQ TEXT</label>
         <textarea id="paste-in" rows="6" placeholder="1. What is photosynthesis?
 A) Breathing process
@@ -464,7 +467,7 @@ A) Nucleus   B) Mitochondria   C) Ribosome   D) Golgi body"></textarea>
         </div>
       </div>
 
-      <div class="hint">
+      <div class="hint" style="display:none;">
         <h4>📐 Accepted question format</h4>
         <pre>1. Question text here?
 A) Option one
@@ -674,9 +677,15 @@ D) Option four
     <div class="q-panel">
       <div class="q-header no-print">
         <div class="q-num" id="q-num-lbl">Question 1 of 60</div>
-        <div class="q-marks">
-          <span class="mark-chip mc-pos" id="mc-pos">+1</span>
-          <span class="mark-chip mc-neg" id="mc-neg" style="display:none;">−0.25</span>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="lang-switch" id="lang-switch" style="display:none;">
+            <button class="lang-btn active" id="lang-btn-en" onclick="setLang('en')">English</button>
+            <button class="lang-btn" id="lang-btn-hi" onclick="setLang('hi')">हिंदी</button>
+          </div>
+          <div class="q-marks">
+            <span class="mark-chip mc-pos" id="mc-pos">+1</span>
+            <span class="mark-chip mc-neg" id="mc-neg" style="display:none;">−0.25</span>
+          </div>
         </div>
       </div>
       <div class="q-content">
@@ -741,6 +750,7 @@ D) Option four
   <div class="result-topbar no-print">
     <div class="logo">Exam<span>Desk</span></div>
     <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" id="btn-clean-data" style="color:#fff;border-color:rgba(255,255,255,.3);">Prune Temp Data</button>
       <button class="btn btn-outline" id="btn-new" style="color:#fff;border-color:rgba(255,255,255,.3);">New Test</button>
       <button class="btn btn-red" id="btn-another-test">Take Another Test</button>
     </div>
@@ -813,6 +823,7 @@ D) Option four
       </div>
 
       <div class="btn-row no-print" style="justify-content:center;">
+        <button class="btn btn-outline btn-lg" id="btn-clean-data2">Prune Temp Data</button>
         <button class="btn btn-blue btn-lg" id="btn-retake">Retake Test</button>
         <button class="btn btn-outline btn-lg" id="btn-new2">New Document</button>
         <button class="btn btn-red btn-lg" id="btn-another-test2">Take Another Test</button>
@@ -1005,7 +1016,8 @@ function loadGeminiResult(result){
     (sec.questions||[]).forEach(q=>{
       questions.push({
         q: q.text||'',
-        opts: (q.options||[]).map(o=>({k:o.key,t:o.text})),
+        qDeva: q.textDevanagari||'',
+        opts: (q.options||[]).map(o=>({k:o.key,t:o.text,tDeva:o.textDevanagari})),
         ans: q.correctAnswer||null,
         sec: sec.name||'General'
       });
@@ -1030,8 +1042,9 @@ function loadGeminiResult(result){
 }
 
 // ─────────────────────────────────────
-// ══ State ══
+// ── State ══
 let questions=[], qState=[], cfg={}, curQ=0, startTime=null, timerInt=null, violations=0, answerKeyMap={};
+let CUR_LANG = 'en';
 
 const S={NV:'nv',NA:'na',ANS:'ans',MRK:'mrk',AMRK:'amrk'};
 
@@ -1173,6 +1186,12 @@ function goInstructions(){
 function startTest(){
   qState=questions.map(()=>({status:S.NV,ans:null,marked:false}));
   curQ=0;startTime=Date.now();violations=0;
+  CUR_LANG = 'en';
+  $('lang-btn-en').classList.add('active');
+  $('lang-btn-hi').classList.remove('active');
+  const hasDevanagari = questions.some(q => q.qDeva);
+  $('lang-switch').style.display = hasDevanagari ? 'inline-flex' : 'none';
+
   $('tb-title').textContent=cfg.title;
   $('sb-nm').textContent=cfg.name||'Candidate';
   $('sb-sub').textContent=cfg.title;
@@ -1186,6 +1205,13 @@ function startTest(){
   document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});
   document.addEventListener('visibilitychange',tabHandler);
   document.addEventListener('fullscreenchange',fsHandler);
+}
+
+function setLang(lang) {
+  CUR_LANG = lang;
+  $('lang-btn-en').classList.toggle('active', lang === 'en');
+  $('lang-btn-hi').classList.toggle('active', lang === 'hi');
+  renderQ();
 }
 
 function buildSectionTabs(){
@@ -1226,12 +1252,17 @@ function renderQ(){
   if(s.status===S.NV)s.status=S.NA;
   updatePalette();updateSectionTab();
   $('q-num-lbl').textContent=`Question ${curQ+1} of ${questions.length}`;
-  $('q-text').textContent=q.q ? q.q.replace(/\n\s*\n+/g, '\n\n').trim() : '';
+
+  const useHi = CUR_LANG === 'hi' && q.qDeva;
+  const qText = useHi ? q.qDeva : q.q;
+  $('q-text').textContent=qText ? qText.replace(/\n\s*\n+/g, '\n\n').trim() : '';
+
   const cont=$('opts');cont.innerHTML='';
   q.opts.forEach(opt=>{
     const btn=document.createElement('button');
     btn.className='opt'+(s.ans===opt.k?' sel':'');
-    btn.innerHTML=`<div class="opt-radio"></div><span class="opt-key">${opt.k}.</span><span>${esc(opt.t)}</span>`;
+    const optText = useHi && opt.tDeva ? opt.tDeva : opt.t;
+    btn.innerHTML=`<div class="opt-radio"></div><span class="opt-key">${opt.k}.</span><span>${esc(optText)}</span>`;
     btn.addEventListener('click',()=>selectOpt(opt.k));
     cont.appendChild(btn);
   });
@@ -1605,6 +1636,34 @@ $('btn-new2').addEventListener('click',resetAll);
 $('btn-another-test').addEventListener('click',takeAnother);
 $('btn-another-test2').addEventListener('click',takeAnother);
 $('btn-retake').addEventListener('click',startTest);
+
+async function cleanWorkspaceData(e) {
+  const btn = e.target;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Cleaning...";
+  try {
+    const res = await fetch('/api/clean', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      btn.textContent = "Cleaned!";
+      alert("Workspace temporary data cleaned successfully! Removed intermediate page images and completed source PDFs.");
+    } else {
+      btn.textContent = "Failed";
+      alert("Error: " + (data.error || "Cleanup failed."));
+    }
+  } catch(e) {
+    btn.textContent = "Failed";
+    alert("Connection error during cleanup.");
+  } finally {
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }, 3000);
+  }
+}
+$('btn-clean-data').addEventListener('click', cleanWorkspaceData);
+$('btn-clean-data2').addEventListener('click', cleanWorkspaceData);
 </script>
 </body>
 </html>

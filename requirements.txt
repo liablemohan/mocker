@@ -4,3 +4,11 @@ PyPDF2
 flask
 flask-cors
 google-genai
+pymupdf
+pdfplumber
+ftfy
+rapidfuzz
+pydantic
+jsonschema
+indic-nlp-library
+sentence-transformers

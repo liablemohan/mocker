@@ -489,14 +489,52 @@ def step_gemini(job_id, raw_text, api_key=None):
 # PIPELINE ORCHESTRATOR
 # ══════════════════════════════════════════════════════════════════════════════
 
-def run_pipeline(job_id, pdf_path, api_key=None):
-    """Full pipeline: Hybrid Extraction → Gemini. Runs in a background thread."""
-    try:
-        # Step 1 & 2: Hybrid Extract (PyPDF2 + Tesseract)
-        raw_text = step_hybrid_extract(job_id, pdf_path)
+from extract_questions import run_extraction_pipeline
 
-        # Step 3: Gemini
-        result = step_gemini(job_id, raw_text, api_key)
+def make_progress_callback(job_id):
+    def progress_callback(pct, total, phase):
+        if phase == "extracting":
+            progress_val = int((pct / total) * 75)
+            update_job(
+                job_id,
+                status="converting" if progress_val < 15 else "ocr",
+                step=f"Processing page {pct}/{total}…",
+                progress=progress_val
+            )
+        else:
+            update_job(
+                job_id,
+                status="gemini",
+                step=phase.capitalize(),
+                progress=pct
+            )
+    return progress_callback
+
+def run_pipeline(job_id, pdf_path, api_key=None):
+    """Full pipeline: Heuristic extraction + LLM fallback. Runs in a background thread."""
+    try:
+        jdir = job_dir(job_id)
+        os.makedirs(results_dir(job_id), exist_ok=True)
+        raw_txt_path = os.path.join(results_dir(job_id), "all_pages.txt")
+        output_json_path = os.path.join(jdir, "result.json")
+        
+        callback = make_progress_callback(job_id)
+        
+        run_extraction_pipeline(
+            pdf_path=pdf_path,
+            api_key=api_key,
+            progress_callback=callback,
+            raw_txt_path=raw_txt_path,
+            output_json_path=output_json_path
+        )
+
+        # Clean up input PDF to save disk space
+        if os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+                print(f"[{job_id}] Removed input PDF to free up disk space.")
+            except Exception as e:
+                print(f"[{job_id}] Warning: Could not remove input PDF: {e}")
 
         update_job(
             job_id,
@@ -629,6 +667,30 @@ def questions_json():
 
     with open(result_path, "r", encoding="utf-8") as fp:
         return jsonify(json.load(fp))
+
+
+@app.route("/api/clean", methods=["POST"])
+def clean_data_api():
+    """Trigger the workspace cleanup script to remove temporary images, old source PDFs, and old jobs."""
+    try:
+        import sys
+        scripts_dir = os.path.join(BASE_DIR, "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.append(scripts_dir)
+        try:
+            import cleanup
+            cleanup.clean_temp_images()
+            cleanup.prune_heavy_pdfs()
+            cleanup.prune_old_jobs()
+            cleanup.clean_root_test_files()
+            return jsonify({"ok": True, "message": "Cleanup completed successfully."})
+        except Exception as e:
+            # Fallback to subprocess execution
+            import subprocess
+            subprocess.run([sys.executable, os.path.join(scripts_dir, "cleanup.py")], check=True)
+            return jsonify({"ok": True, "message": "Cleanup script executed successfully."})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route("/reset", methods=["POST"])

@@ -622,6 +622,7 @@ circle { fill: none; stroke-width: 14; }
   <div class="res-bar">
     <div class="logo">Exam<em>Desk</em></div>
     <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" id="btn-clean-data" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);">Prune Temp Data</button>
       <button class="btn btn-blue" id="btn-retake">🔄 Retake</button>
       <button class="btn btn-red" id="btn-another-test">Take Another Test</button>
       <button class="btn" onclick="window.print()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);">🖨️ Print</button>
@@ -663,6 +664,7 @@ circle { fill: none; stroke-width: 14; }
 
       <!-- Actions -->
       <div class="res-actions">
+        <button class="btn btn-ghost" id="btn-clean-data2">Prune Temp Data</button>
         <button class="btn btn-blue" id="btn-retake2">🔄 Retake Test</button>
         <button class="btn btn-red" id="btn-another-test2">Take Another Test</button>
         <button class="btn btn-ghost" onclick="window.print()">🖨️ Print Result</button>
@@ -1112,6 +1114,36 @@ function buildResult(elapsed) {
     .forEach(b => {
       if (b) b.onclick = takeAnother;
     });
+
+  async function cleanWorkspaceData(e) {
+    const btn = e.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Cleaning...";
+    try {
+      const res = await fetch('/api/clean', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        btn.textContent = "Cleaned!";
+        alert("Workspace temporary data cleaned successfully! Removed intermediate page images and completed source PDFs.");
+      } else {
+        btn.textContent = "Failed";
+        alert("Error: " + (data.error || "Cleanup failed."));
+      }
+    } catch(e) {
+      btn.textContent = "Failed";
+      alert("Connection error during cleanup.");
+    } finally {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }, 3000);
+    }
+  }
+  const cleanBtn = document.getElementById('btn-clean-data');
+  const cleanBtn2 = document.getElementById('btn-clean-data2');
+  if (cleanBtn) cleanBtn.onclick = cleanWorkspaceData;
+  if (cleanBtn2) cleanBtn2.onclick = cleanWorkspaceData;
 }
 
 function buildReview(filter) {
