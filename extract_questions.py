@@ -52,6 +52,13 @@ try:
 except ImportError:
     INDIC_NORMALIZER = None
 
+# ─── Text Cleaner ─────────────────────────────────────────────────────────────
+try:
+    from text_cleaner import clean_extracted_text, clean_question_text
+except ImportError:
+    def clean_extracted_text(text: str) -> str: return text
+    def clean_question_text(text: str) -> str: return text
+
 def normalize_indic_text(text: str) -> str:
     if not text:
         return ""
@@ -437,6 +444,10 @@ def run_extraction_pipeline(pdf_path: str, api_key: str = None, progress_callbac
     
     for pg in sorted(pages):
         text = pages[pg]
+        # ── Clean noise from extracted page text before stream building ────────
+        text = clean_extracted_text(text)
+        pages[pg] = text   # update in place so full_raw_text stays consistent
+        # ──────────────────────────────────────────────────────────────────────
         r_match = re.search(r"=== Page \d+ \(Roman Script\) ===", text)
         d_match = re.search(r"=== Page \d+ \(Devanagari Script\) ===", text)
         
@@ -592,8 +603,8 @@ def run_extraction_pipeline(pdf_path: str, api_key: str = None, progress_callbac
                 for k in ['1', '2', '3', '4']:
                     options.append(OptionSchema(
                         key=k,
-                        text=eng_b["options"][k],
-                        textDevanagari=hin_b["options"][k]
+                        text=clean_question_text(eng_b["options"][k]),
+                        textDevanagari=clean_question_text(hin_b["options"][k])
                     ))
                 
                 correct_ans = None
@@ -605,8 +616,8 @@ def run_extraction_pipeline(pdf_path: str, api_key: str = None, progress_callbac
                 
                 q_model = QuestionSchema(
                     number=eng_b["number"] or hin_b["number"] or 0,
-                    text=eng_b["text"],
-                    textDevanagari=hin_b["text"],
+                    text=clean_question_text(eng_b["text"]),
+                    textDevanagari=clean_question_text(hin_b["text"]),
                     options=options,
                     correctAnswer=correct_ans
                 )

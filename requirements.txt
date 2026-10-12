@@ -12,3 +12,5 @@ pydantic
 jsonschema
 indic-nlp-library
 sentence-transformers
+gunicorn
+pillow

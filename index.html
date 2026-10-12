@@ -232,6 +232,7 @@ textarea::placeholder{color:var(--gray-400);}
   font-size:14px;line-height:1.5;color:var(--gray-800);
 }
 .opt:hover{border-color:var(--blue);background:var(--blue-l);}
+@media(pointer:coarse){.opt{padding:14px 16px;gap:14px;}.opt-radio{width:22px;height:22px;flex-shrink:0;}}
 .opt.sel{border-color:var(--blue);background:var(--blue-l);}
 .opt.correct{border-color:var(--green-b);background:var(--green-l);}
 .opt.wrong{border-color:#fca5a5;background:var(--red-l);}
@@ -312,14 +313,24 @@ textarea::placeholder{color:var(--gray-400);}
 .modal{background:#fff;border-radius:12px;padding:24px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.15);}
 .modal h3{font-size:17px;font-weight:700;margin-bottom:6px;}
 .modal .sub{color:var(--gray-500);font-size:13px;margin-bottom:20px;}
-.modal-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.modal-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
 .ms{background:var(--gray-50);border-radius:8px;padding:12px;text-align:center;}
 .ms-n{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;}
 .ms-l{font-size:11px;color:var(--gray-400);margin-top:2px;}
 .ms-ans .ms-n{color:var(--green);}
 .ms-na .ms-n{color:var(--red);}
 .ms-mrk .ms-n{color:var(--purple);}
+.modal-sec-breakdown{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.modal-sec-breakdown h4{font-size:11px;font-weight:700;color:var(--gray-400);letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;}
+.sec-row{display:flex;align-items:center;gap:8px;background:var(--gray-50);border-radius:6px;padding:8px 10px;}
+.sec-row-name{font-size:12px;font-weight:600;color:var(--gray-700);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sec-row-bar{flex:1;height:5px;background:var(--gray-200);border-radius:99px;overflow:hidden;min-width:60px;}
+.sec-row-fill{height:100%;border-radius:99px;background:var(--blue);transition:width .4s;}
+.sec-row-count{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray-500);white-space:nowrap;}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;}
+/* Draft save toast */
+.draft-toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:#fff;font-size:12px;padding:8px 16px;border-radius:20px;z-index:9999;opacity:0;transition:all .4s ease;pointer-events:none;white-space:nowrap;}
+.draft-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 .warn-modal{background:var(--red-l);border:1.5px solid #fca5a5;}
 .warn-modal h3{color:var(--red);}
@@ -402,8 +413,23 @@ textarea::placeholder{color:var(--gray-400);}
 }
 #print-sheet{display:none;}
 
+@media(max-width:992px){
+  #btn-toggle-palette{display:inline-flex!important;}
+  .test-sidebar{
+    position:fixed;
+    right:0;top:56px;bottom:0;
+    z-index:100;
+    width:280px;
+    box-shadow:-4px 0 16px rgba(0,0,0,0.15);
+    transform:translateX(100%);
+    transition:transform 0.3s ease;
+  }
+  .test-sidebar.open{
+    transform:translateX(0);
+    display:flex!important;
+  }
+}
 @media(max-width:768px){
-  .test-sidebar{display:none;}
   .action-cards{grid-template-columns:1fr;}
 }
 </style>
@@ -660,6 +686,7 @@ D) Option four
       <div class="test-title-bar" id="tb-title"></div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
+      <button class="btn btn-outline" id="btn-toggle-palette" style="display:none;background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.25);">📋 Palette</button>
       <div class="timer-wrap" id="tw">
         <div><div class="timer-lbl">TIME LEFT</div><div class="timer-val" id="tv">--:--:--</div></div>
       </div>
@@ -844,12 +871,17 @@ D) Option four
       <div class="ms ms-na"><div class="ms-n" id="ms-na">0</div><div class="ms-l">Not Answered</div></div>
       <div class="ms ms-mrk"><div class="ms-n" id="ms-m">0</div><div class="ms-l">Marked</div></div>
     </div>
+    <div class="modal-sec-breakdown" id="modal-sec-breakdown">
+      <h4>Section-wise Progress</h4>
+      <div id="modal-sec-rows"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-outline" id="btn-cancel-sub">Cancel</button>
       <button class="btn btn-red" id="btn-confirm-sub">Yes, Submit</button>
     </div>
   </div>
 </div>
+<div class="draft-toast" id="draft-toast">💾 Draft saved</div>
 
 <div class="overlay" id="ov-warn">
   <div class="modal warn-modal">
@@ -921,9 +953,12 @@ function pipeStep(id,state){
     id==='pstep-convert'?'🖼️':id==='pstep-ocr'?'🔍':'✨';
 }
 
+let lastPipeProgress = 0;
+
 function updatePipeUI(j){
   $('pipe-sub').textContent=j.step||'Working…';
-  const pct=j.progress||0;
+  const pct=Math.max(lastPipeProgress, j.progress||0);
+  lastPipeProgress = pct;
   $('pipe-fill').style.width=pct+'%';
   $('pipe-pct').textContent=pct+'%';
 
@@ -951,6 +986,7 @@ function updatePipeUI(j){
 async function startPipeline(file){
   pipelineJobId=null;
   clearInterval(pipelinePollInterval);
+  lastPipeProgress = 0;
 
   // Reset step icons
   ['pstep-convert','pstep-ocr','pstep-gemini'].forEach(id=>{
@@ -1181,9 +1217,83 @@ function goInstructions(){
 }
 
 // ══════════════════════════════════════
+// DRAFT AUTO-SAVE (localStorage)
+// ══════════════════════════════════════
+const DRAFT_KEY = 'examdesk_draft';
+let draftInterval = null;
+
+function saveDraft() {
+  if (!questions.length || !qState.length) return;
+  const draft = {
+    ts: Date.now(),
+    cfg,
+    questions,
+    qState,
+    curQ,
+    startTime,
+    violations
+  };
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    const t = $('draft-toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  } catch(e) { /* quota exceeded – silently skip */ }
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    // Expire after 8 hours
+    if (!d.ts || Date.now() - d.ts > 8*3600*1000) { clearDraft(); return null; }
+    return d;
+  } catch(e) { return null; }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
+function tryResumeDraft() {
+  const d = loadDraft();
+  if (!d) return false;
+  const savedMins = Math.round((Date.now() - d.ts) / 60000);
+  const msg = `Resume your previous session?\n\nExam: ${d.cfg?.title || 'Unknown'}\nSaved: ${savedMins} min ago\nProgress: Q${d.curQ+1} of ${d.questions?.length}`;
+  if (!confirm(msg)) { clearDraft(); return false; }
+  cfg = d.cfg;
+  questions = d.questions;
+  qState = d.qState;
+  curQ = d.curQ;
+  startTime = d.startTime;
+  violations = d.violations || 0;
+  CUR_LANG = 'en';
+  $('lang-btn-en').classList.add('active');
+  $('lang-btn-hi').classList.remove('active');
+  const hasDevanagari = questions.some(q => q.qDeva);
+  $('lang-switch').style.display = hasDevanagari ? 'inline-flex' : 'none';
+  $('tb-title').textContent=cfg.title;
+  $('sb-nm').textContent=cfg.name||'Candidate';
+  $('sb-sub').textContent=cfg.title;
+  $('sb-av').textContent=(cfg.name||'C')[0].toUpperCase();
+  $('mc-pos').textContent='+'+cfg.marks;
+  $('mc-neg').textContent='−'+cfg.neg;
+  $('mc-neg').style.display=cfg.neg?'':'none';
+  buildSectionTabs();buildPalette();startTimer();
+  show('test');renderQ();
+  document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});
+  document.addEventListener('visibilitychange',tabHandler);
+  document.addEventListener('fullscreenchange',fsHandler);
+  draftInterval = setInterval(saveDraft, 30000);
+  return true;
+}
+
+// ══════════════════════════════════════
 // TEST ENGINE
 // ══════════════════════════════════════
 function startTest(){
+  clearDraft();
   qState=questions.map(()=>({status:S.NV,ans:null,marked:false}));
   curQ=0;startTime=Date.now();violations=0;
   CUR_LANG = 'en';
@@ -1205,6 +1315,9 @@ function startTest(){
   document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});
   document.addEventListener('visibilitychange',tabHandler);
   document.addEventListener('fullscreenchange',fsHandler);
+  // Start auto-save
+  clearInterval(draftInterval);
+  draftInterval = setInterval(saveDraft, 30000);
 }
 
 function setLang(lang) {
@@ -1221,7 +1334,10 @@ function buildSectionTabs(){
   bar.style.display='flex';
   secs.forEach(sec=>{
     const btn=document.createElement('button');
-    btn.className='sec-tab';btn.textContent=sec;
+    btn.className='sec-tab';
+    btn.dataset.sec=sec;
+    const total = questions.filter(q=>q.sec===sec).length;
+    btn.innerHTML = `<span>${sec}</span><span class="sec-badge" style="margin-left:6px;font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--gray-100);color:var(--gray-500);padding:1px 5px;border-radius:99px;">0/${total}</span>`;
     btn.addEventListener('click',()=>{
       const idx=questions.findIndex(q=>q.sec===sec);
       if(idx>=0){curQ=idx;renderQ();}
@@ -1232,7 +1348,20 @@ function buildSectionTabs(){
 }
 function updateSectionTab(){
   const sec=questions[curQ]?.sec;
-  document.querySelectorAll('.sec-tab').forEach(t=>{t.classList.toggle('active',t.textContent===sec);});
+  document.querySelectorAll('.sec-tab').forEach(t=>{
+    const tSec = t.dataset.sec;
+    t.classList.toggle('active', tSec===sec);
+  });
+  updateSectionTabCounts();
+}
+function updateSectionTabCounts(){
+  document.querySelectorAll('.sec-tab').forEach(t=>{
+    const tSec = t.dataset.sec;
+    const total = questions.filter(q=>q.sec===tSec).length;
+    const answered = questions.reduce((acc,q,i)=>q.sec===tSec&&qState[i]?.ans?acc+1:acc,0);
+    const badge = t.querySelector('.sec-badge');
+    if(badge) badge.textContent = `${answered}/${total}`;
+  });
 }
 
 function startTimer(){
@@ -1319,11 +1448,29 @@ function openSubmitModal(){
   const na=qState.filter(s=>!s.ans&&!s.marked).length;
   const mk=qState.filter(s=>s.marked).length;
   $('ms-a').textContent=a;$('ms-na').textContent=na;$('ms-m').textContent=mk;
+
+  // Section-wise breakdown
+  const secs=[...new Set(questions.map(q=>q.sec))];
+  const rowsEl=$('modal-sec-rows'); rowsEl.innerHTML='';
+  $('modal-sec-breakdown').style.display = secs.length>1 ? 'block':'none';
+  secs.forEach(sec=>{
+    const secQs = questions.map((q,i)=>({q,i})).filter(({q})=>q.sec===sec);
+    const total = secQs.length;
+    const ans = secQs.filter(({i})=>qState[i]?.ans).length;
+    const pct = total ? Math.round(ans/total*100) : 0;
+    const row=document.createElement('div');
+    row.className='sec-row';
+    row.innerHTML=`<span class="sec-row-name" title="${esc(sec)}">${esc(sec)}</span><div class="sec-row-bar"><div class="sec-row-fill" style="width:${pct}%"></div></div><span class="sec-row-count">${ans}/${total}</span>`;
+    rowsEl.appendChild(row);
+  });
+
   ov('submit',true);
 }
 function submitTest(){
   ov('submit',false);ov('timeup',false);
   clearInterval(timerInt);
+  clearInterval(draftInterval);
+  clearDraft();
   document.removeEventListener('visibilitychange',tabHandler);
   document.removeEventListener('fullscreenchange',fsHandler);
   if(document.exitFullscreen)document.exitFullscreen().catch(()=>{});
@@ -1619,6 +1766,8 @@ $('btn-pdf').addEventListener('click',generatePDF);
 
 // New test / retake
 function resetAll(){
+  clearInterval(draftInterval);
+  clearDraft();
   questions=[];qState=[];answerKeyMap={};
   $('paste-in').value='';fi.value='';$('agree-chk').checked=false;$('btn-start').disabled=true;
   show('upload');
@@ -1664,6 +1813,21 @@ async function cleanWorkspaceData(e) {
 }
 $('btn-clean-data').addEventListener('click', cleanWorkspaceData);
 $('btn-clean-data2').addEventListener('click', cleanWorkspaceData);
+
+$('btn-toggle-palette').addEventListener('click', () => {
+  document.querySelector('.test-sidebar').classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  const sidebar = document.querySelector('.test-sidebar');
+  const toggleBtn = $('btn-toggle-palette');
+  if (sidebar && sidebar.classList.contains('open')) {
+    if ((!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) || e.target.classList.contains('pal-btn') || e.target.closest('.pal-btn')) {
+      sidebar.classList.remove('open');
+    }
+  }
+});
+// Try to resume draft on load
+window.addEventListener('load', () => { tryResumeDraft(); });
 </script>
 </body>
 </html>

@@ -222,6 +222,7 @@ button { font-family: inherit; cursor: pointer; border: none; }
   width: 100%; text-align: left; font-size: 14px; line-height: 1.5; color: #374151;
 }
 .opt:hover { border-color: var(--blue); background: var(--blue-l); }
+@media (pointer: coarse) { .opt { padding: 16px 18px; gap: 16px; } .opt-r { width: 24px; height: 24px; } }
 .opt.sel  { border-color: var(--blue); background: var(--blue-l); }
 .opt.ok   { border-color: #4ade80; background: var(--green-l); }
 .opt.bad  { border-color: #f87171; background: var(--red-l); }
@@ -362,7 +363,7 @@ button { font-family: inherit; cursor: pointer; border: none; }
 @keyframes pop { from { opacity:0; transform: scale(.9) translateY(16px); } to { opacity:1; transform: none; } }
 .modal h3 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
 .modal .msub { color: var(--gray); font-size: 13px; margin-bottom: 20px; }
-.modal-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 22px; }
+.modal-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
 .mstat { background: #f8fafc; border-radius: 10px; padding: 14px; text-align: center; border: 1px solid #e2e8f0; }
 .mstat-n { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; }
 .mstat-l { font-size: 10px; color: var(--gray-l); margin-top: 3px; letter-spacing: .04em; }
@@ -370,6 +371,20 @@ button { font-family: inherit; cursor: pointer; border: none; }
 .ms-na  .mstat-n { color: var(--red); }
 .ms-mrk .mstat-n { color: var(--purple); }
 .mfoot { display: flex; gap: 10px; justify-content: flex-end; }
+/* Section breakdown inside modal */
+.modal-sec-bk { margin-bottom: 18px; }
+.modal-sec-bk h4 { font-size: 10px; font-weight: 700; color: var(--gray-l); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px; }
+.sec-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #f8fafc; border-radius: 7px; margin-bottom: 6px; }
+.sec-row:last-child { margin-bottom: 0; }
+.sec-row-name { font-size: 12px; font-weight: 600; color: #334155; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-row-bar { flex: 1; height: 5px; background: #e2e8f0; border-radius: 99px; overflow: hidden; min-width: 50px; }
+.sec-row-fill { height: 100%; border-radius: 99px; background: var(--blue); transition: width .4s; }
+.sec-row-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b; white-space: nowrap; }
+/* Draft toast */
+.draft-toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%) translateY(60px); background: #1e293b; color: #fff; font-size: 12px; padding: 8px 16px; border-radius: 20px; z-index: 9999; opacity: 0; transition: all .4s ease; pointer-events: none; white-space: nowrap; }
+.draft-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* Section badge in tab */
+.sec-badge { display: inline-flex; margin-left: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; background: rgba(0,0,0,.07); padding: 1px 5px; border-radius: 99px; vertical-align: middle; }
 
 /* ══════════════════════════════════════════════════════════════
    RESULT SCREEN
@@ -443,6 +458,22 @@ circle { fill: none; stroke-width: 14; }
 .a-u { color: var(--blue); } .a-c { color: var(--green); } .a-w { color: var(--red); }
 
 .res-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 992px) {
+  #btn-toggle-palette { display: inline-flex !important; }
+  .sidebar {
+    position: fixed;
+    right: 0; top: 56px; bottom: 0;
+    z-index: 100;
+    width: 288px;
+    box-shadow: -4px 0 16px rgba(0,0,0,0.15);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    display: flex !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -516,6 +547,7 @@ circle { fill: none; stroke-width: 14; }
       <div class="tb-title" id="tb-title"></div>
     </div>
     <div class="tb-right">
+      <button class="btn" id="btn-toggle-palette" style="display:none;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.2);padding:9px 14px;">📋 Palette</button>
       <div class="timer" id="timer">
         <span class="timer-icon">⏱</span>
         <div class="timer-val" id="timer-val">00:00:00</div>
@@ -695,25 +727,45 @@ circle { fill: none; stroke-width: 14; }
       <div class="mstat ms-na"><div class="mstat-n" id="m-na">0</div><div class="mstat-l">NOT ANSWERED</div></div>
       <div class="mstat ms-mrk"><div class="mstat-n" id="m-mrk">0</div><div class="mstat-l">MARKED</div></div>
     </div>
+    <div class="modal-sec-bk" id="modal-sec-bk">
+      <h4>Section Progress</h4>
+      <div id="modal-sec-rows"></div>
+    </div>
     <div class="mfoot">
       <button class="btn btn-ghost" id="m-cancel">Cancel</button>
       <button class="btn btn-red" id="m-ok">Submit Test →</button>
     </div>
   </div>
 </div>
+<div class="draft-toast" id="draft-toast">💾 Draft saved</div>
 
 <script>
 /* ════════════════════════════════════════════════════════════
    STATE
 ════════════════════════════════════════════════════════════ */
 let DATA, ALL_Q = [], SECS = [];
-let RESP  = {};   // idx → option key | null
-let MRK   = {};   // idx → bool
-let VIS   = {};   // idx → bool
+let RESP  = [];   // idx → option key | null
+let MRK   = [];   // idx → bool
+let VIS   = [];   // idx → bool
 let CUR = 0, CUR_SEC = 0;
 let TIMER, TREM = 0, T_START;
 let DONE = false;
 let CUR_LANG = 'en'; // 'en' or 'hi'
+let DRAFT_INTERVAL = null;
+
+/* Draft auto-save helpers */
+const DRAFT_KEY = 'examdesk_test_draft';
+function saveDraft() {
+  if (DONE || !ALL_Q.length) return;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ ts: Date.now(), RESP: [...RESP], MRK: [...MRK], VIS: [...VIS], CUR, T_START, TREM }));
+    const t = document.getElementById('draft-toast');
+    if (t) { t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
+  } catch(e) {}
+}
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
 
 const CFG = { title:'Practice Test', dur:180, mpq:4, neg:1 };
 
@@ -817,10 +869,10 @@ function startTest() {
   document.getElementById('m-pos').textContent = '+' + CFG.mpq;
   if (CFG.neg > 0) { document.getElementById('m-neg').textContent = '−' + CFG.neg; document.getElementById('m-neg').style.display = ''; }
 
-  // Section tabs
+  // Section tabs with progress badge
   const tabBar = document.getElementById('sec-tabs');
   tabBar.innerHTML = SECS.map((s,i) =>
-    `<button class="sec-tab${i===0?' active':''}" data-si="${i}">${esc(s.name)}</button>`
+    `<button class="sec-tab${i===0?' active':''}" data-si="${i}"><span>${esc(s.name)}</span><span class="sec-badge" id="sec-badge-${i}">0/${s.count}</span></button>`
   ).join('');
   tabBar.querySelectorAll('.sec-tab').forEach(b =>
     b.addEventListener('click', () => goTo(SECS[+b.dataset.si].start))
@@ -850,6 +902,10 @@ function startTest() {
   TIMER   = setInterval(tickTimer, 1000);
 
   goTo(0);
+
+  // Start draft auto-save
+  clearInterval(DRAFT_INTERVAL);
+  DRAFT_INTERVAL = setInterval(saveDraft, 30000);
 }
 
 function setLang(lang) {
@@ -1004,6 +1060,13 @@ function syncCounts() {
   document.getElementById('st-na').textContent  = ALL_Q.length - ans;
   document.getElementById('st-mrk').textContent = mrk;
   document.getElementById('st-nv').textContent  = nv;
+  // Update section tab badges
+  SECS.forEach((s, i) => {
+    const badge = document.getElementById(`sec-badge-${i}`);
+    if (!badge) return;
+    const secAns = RESP.slice(s.start, s.start + s.count).filter(r => r !== null).length;
+    badge.textContent = `${secAns}/${s.count}`;
+  });
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1015,6 +1078,18 @@ function openModal() {
   document.getElementById('m-ans').textContent = ans;
   document.getElementById('m-na').textContent  = ALL_Q.length - ans;
   document.getElementById('m-mrk').textContent = mrk;
+
+  // Section-wise breakdown
+  const secBk = document.getElementById('modal-sec-bk');
+  const secRows = document.getElementById('modal-sec-rows');
+  secBk.style.display = SECS.length > 1 ? 'block' : 'none';
+  secRows.innerHTML = SECS.map(s => {
+    const total = s.count;
+    const secAns = RESP.slice(s.start, s.start + total).filter(r => r !== null).length;
+    const pct = total ? Math.round(secAns / total * 100) : 0;
+    return `<div class="sec-row"><span class="sec-row-name" title="${esc(s.name)}">${esc(s.name)}</span><div class="sec-row-bar"><div class="sec-row-fill" style="width:${pct}%"></div></div><span class="sec-row-count">${secAns}/${total}</span></div>`;
+  }).join('');
+
   document.getElementById('modal').classList.add('open');
 }
 document.getElementById('m-cancel').onclick = () => document.getElementById('modal').classList.remove('open');
@@ -1027,6 +1102,8 @@ function submit() {
   if (DONE) return;
   DONE = true;
   clearInterval(TIMER);
+  clearInterval(DRAFT_INTERVAL);
+  clearDraft();
   const elapsed = Math.floor((Date.now() - T_START) / 1000);
   buildResult(elapsed);
   show('sc-result');
@@ -1144,6 +1221,21 @@ function buildResult(elapsed) {
   const cleanBtn2 = document.getElementById('btn-clean-data2');
   if (cleanBtn) cleanBtn.onclick = cleanWorkspaceData;
   if (cleanBtn2) cleanBtn2.onclick = cleanWorkspaceData;
+
+  const toggleBtn = document.getElementById('btn-toggle-palette');
+  const sidebar = document.querySelector('.sidebar');
+  if (toggleBtn) {
+    toggleBtn.onclick = () => {
+      sidebar.classList.toggle('open');
+    };
+  }
+  document.addEventListener('click', (e) => {
+    if (sidebar && sidebar.classList.contains('open')) {
+      if ((!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) || e.target.classList.contains('pal-btn') || e.target.closest('.pal-btn')) {
+        sidebar.classList.remove('open');
+      }
+    }
+  });
 }
 
 function buildReview(filter) {
